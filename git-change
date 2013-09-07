@@ -473,6 +473,39 @@ git-change - Git extension to implement a Gerrit workflow
 
 =head1 SEE ALSO
 
+=over
+
+=item * L<git-review|https://github.com/openstack-infra/git-review>:
+Another script implementing a Gerrit workflow in Git.
+
+=back
+
+=head1 PREREQUISITES
+
+=over
+=item * C<Pod::Usage>
+=item * C<Getopt::Long>
+=item * C<File::Temp>
+=item * C<Gerrit::REST>
+=item * C<URI>
+=item * C<URI::Escape>
+=back
+
+=head1 COREQUISITES
+
+=over
+=item * C<Term::Prompt>
+=back
+
+=pod OSNAMES
+
+any
+
+=pod SCRIPT CATEGORIES
+
+VersionControl/Git
+VersionControl/Gerrit
+
 =head1 COPYRIGHT
 
 Copyright 2013 CPqD.
