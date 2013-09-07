@@ -7,12 +7,10 @@ use warnings;
 use autodie;
 use Pod::Usage;
 use Getopt::Long qw(:config auto_version auto_help);
-use File::Temp qw/tempfile/;
-use lib '/home/gustavo/git/mine/gerrit-rest/lib';
-use Gerrit::REST;
 use URI;
 use URI::Escape;
-use Data::Dumper;
+use lib '/home/gustavo/git/mine/gerrit-rest/lib';
+use Gerrit::REST;
 
 my %Options = (
     verbose => 0,
@@ -66,7 +64,8 @@ sub grok_config {
 
 sub get_credentials {
     # Create a temporary file to hold the credential description
-    my ($fh, $credfile) = tempfile(UNLINK => 1);
+    require File::Temp;
+    my ($fh, $credfile) = File::Temp::tempfile(UNLINK => 1);
     $fh->print(<<EOF);
 protocol=$Config{protocol}
 host=$Config{host}
@@ -217,7 +216,8 @@ sub cmd_query {
         print "[[$_[$i]]]\n";
         next unless @{$changes->[$i]};
         if ($Options{verbose}) {
-            print Dumper($changes->[$i]);
+            require Data::Dumper;
+            print Data::Dumper::Dumper($changes->[$i]);
         } else {
             printf $format, 'ID', 'STATUS', 'UPDATED', 'PROJECT', 'BRANCH', 'OWNER', 'SUBJECT';
             foreach my $change (sort {$b->{updated} cmp $a->{updated}} @{$changes->[$i]}) {
