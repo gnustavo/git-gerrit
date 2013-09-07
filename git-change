@@ -1,0 +1,485 @@
+#!/usr/bin/env perl
+
+use 5.010;
+use utf8;
+use strict;
+use warnings;
+use autodie;
+use Pod::Usage;
+use Getopt::Long qw(:config auto_version auto_help);
+use File::Temp qw/tempfile/;
+use lib '/home/gustavo/git/mine/gerrit-rest/lib';
+use Gerrit::REST;
+use URI;
+use URI::Escape;
+use Data::Dumper;
+
+my %Options = (
+    verbose => 0,
+);
+sub get_options {
+    my ($optref, @opt_specs) = @_;
+    return GetOptions(\%Options, 'verbose+', @opt_specs)
+        or pod2usage(2);
+}
+
+sub info {
+    my ($msg, $level) = @_;
+    $level //= 1;
+    warn $msg, "\n" if $Options{verbose} >= $level;
+}
+
+sub cmd {
+    my ($cmd) = @_;
+    warn "CMD: $cmd\n";
+    return system($cmd) == 0;
+}
+
+my %Config = (
+    protocol => 'https',
+    username => $ENV{USER},
+    port     => 443,
+);
+sub grok_config {
+    info "Grokking git-change configuration...";
+    {
+        open my $pipe, '-|', 'git config --get-regexp "^git-change\."';
+        while (<$pipe>) {
+            if (/^git-change\.(\S+)\s+(.*)/) {
+                $Config{$1} = $2;
+            } else {
+                warn "Strange git-config output: $_";
+            }
+        }
+    }
+
+    for my $key (qw/protocol username host port project/) {
+        exists $Config{$key}
+            or die "You must set the git-change.$key configuration variable.\n";
+    }
+
+    $Config{url} = URI->new(sprintf('%s://%s@%s:%s', @Config{qw/protocol username host port/}));
+
+    # FIXME: Some of these variables should be settable via the
+    # .gitchange file or via environment variables.
+}
+
+sub get_credentials {
+    # Create a temporary file to hold the credential description
+    my ($fh, $credfile) = tempfile(UNLINK => 1);
+    $fh->print(<<EOF);
+protocol=$Config{protocol}
+host=$Config{host}
+path=$Config{project}
+username=$Config{username}
+
+EOF
+    $fh->close;
+
+    my %credentials;
+    open my $pipe, '-|', "git credential fill <$credfile";
+    while (<$pipe>) {
+        chomp;
+        $credentials{$1} = $2 if /^([^=]+)=(.*)/;
+    }
+    close $pipe;
+
+    for my $key (qw/username password/) {
+        exists $credentials{$key} or die "Couldn't get credential's $key\n";
+    }
+
+    return @credentials{qw/username password/};
+}
+
+sub set_credentials {
+    my ($username, $password, $what) = @_;
+
+    $what =~ /^(?:approve|reject)$/
+        or die "set_credentials \$what argument ($what) must be either 'approve' or 'reject'\n";
+
+    open my $git, '|-', "git credential $what";
+
+    $git->print(<<EOF);
+protocol=$Config{protocol}
+host=$Config{host}
+path=$Config{project}
+username=$username
+password=$password
+
+EOF
+
+    $git->close;
+
+    return;
+}
+
+sub gerrit {
+    my $method = shift;
+
+    state $gerrit;
+    unless ($gerrit) {
+        my ($username, $password) = get_credentials;
+        $gerrit = Gerrit::REST->new($Config{url}, $username, $password);
+        eval { $gerrit->GET("/projects/" . uri_escape_utf8($Config{project})) };
+        if ($@) {
+            set_credentials($username, $password, 'reject');
+            die $@;
+        } else {
+            set_credentials($username, $password, 'approve');
+        }
+    }
+
+    warn join(' ', 'Gerrit:', $method, @_), "\n";
+
+    return $gerrit->$method(@_);
+}
+
+sub query_changes {
+    # If no query is specified we use the standard query for Gerrit's
+    # "My Changes" dashboard.
+    my @queries = @_ ? @_ : qw/is:open+owner:self is:open+reviewer:self+-owner:self/;
+
+    # The query is always restricted to the current project's reviews.
+    my $project = uri_escape_utf8($Config{project});
+    my $query   = join '&', map "q=project:$project+$_", @queries;
+
+    $query .= "&n=$Options{limit}" if $Options{limit};
+
+    my $changes = gerrit(GET => "/changes/?$query&o=DETAILED_ACCOUNTS");
+    $changes = [$changes] if ref $changes->[0] eq 'HASH';
+
+    return $changes;
+}
+
+sub get_change {
+    my ($id, $allrevs) = @_;
+
+    my $revs = $allrevs ? 'ALL_REVISIONS' : 'CURRENT_REVISION';
+    return (gerrit(GET => "/changes/?q=change:$id&o=$revs"))[0][0];
+}
+
+sub change_refspecs {
+    my ($change) = @_;
+
+    my %refspecs;
+    foreach my $patch (sort {$a->{_number} <=> $b->{_number}} values %{$change->{revisions}}) {
+        my $http = $patch->{fetch}{http};
+        push @{$refspecs{$http->{url}}}, "$http->{ref}:review/$change->{_number}/$patch->{_number}";
+    }
+    return \%refspecs;
+}
+
+sub current_branch {
+    chomp(my $branch = qx/git rev-parse --abbrev-ref HEAD/);
+    return $branch;
+}
+
+sub update_branch {
+    my ($branch) = @_;
+
+    cmd qw/git fetch/, $Config{url}, "$branch:$branch";
+}
+
+sub cmd_new {
+    get_options(
+        'update',
+    );
+
+    my ($topic, $branch) = @_;
+
+    defined $topic or pod2usage("new: Missing TOPIC");
+
+    $branch = current_branch();
+
+    $branch !~ m:^change/: or pod2usage "new: Missing BRANCH\n";
+
+    qx/git status --porcelain --untracked-files=no/ eq "\n"
+        or die "new: Can't create new change because git-status is dirty\n";
+
+    if ($Options{update}) {
+        update_branch($branch)
+            or die "new: Non-fast-forward pull. Please, merge or rebase your branch first.\n";
+    }
+
+    cmd qw:git checkout -b change/branch/topic:, $branch;
+}
+
+sub cmd_query {
+    get_options(
+        'limit=i',
+    );
+
+    my $changes = query_changes(@_);
+
+    # FIXME: consider using Text::Table for formatting
+    my $format = "%-5s %-9s %-19s %-12s %-12s %-24s %s\n";
+    for (my $i=0; $i < @$changes; ++$i) {
+        print "[[$_[$i]]]\n";
+        next unless @{$changes->[$i]};
+        if ($Options{verbose}) {
+            print Dumper($changes->[$i]);
+        } else {
+            printf $format, 'ID', 'STATUS', 'UPDATED', 'PROJECT', 'BRANCH', 'OWNER', 'SUBJECT';
+            foreach my $change (sort {$b->{updated} cmp $a->{updated}} @{$changes->[$i]}) {
+                printf $format,
+                    $change->{_number},
+                    $change->{status},
+                    substr($change->{updated}, 0, 19),
+                    $change->{project},
+                    $change->{branch},
+                    substr($change->{owner}{name}, 0, 24),
+                    $change->{subject};
+            }
+        }
+    }
+}
+
+sub cmd_show {
+    my $changeid = shift
+        or pod2usage "show: Missing CHANGE.\n";
+
+    my $change = gerrit(GET => "/changes/$changeid");
+    for my $key (qw/id subject created updated status reviewed mergeable/) {
+        print "$key: $change->{key}\n" if exists $change->{$key};
+    }
+    print "owner: $change->{owner}{name}\n";
+}
+
+sub cmd_checkout {
+    my ($id) = shift or pod2usage("You have to specify a CHANGE");
+
+    my $change = get_change($id);
+
+    my ($revision) = values %{$change->{revisions}};
+
+    my ($url, $ref) = @{$revision->{fetch}{http}}{qw/url ref/};
+
+    my $branch = "change/$change->{branch}/$change->{_number}";
+
+    cmd "git fetch $url $ref:$branch"
+        or die "Can't fetch $url\n";
+
+    cmd "git checkout $branch";
+}
+
+sub cmd_push {
+    get_options(
+        'keep',
+        'rebase',
+        'update',
+        'topic=s',
+        'reviewer=s@',
+        'cc=s@'
+    );
+
+    qx/git status --porcelain --untracked-files=no/ eq "\n"
+        or die "push: Can't push change because git-status is dirty\n";
+
+    my $change_branch = current_branch();
+
+    my ($prefix, $branch, $topic, $id) = split m:/:, $change_branch;
+
+    $prefix eq 'change' or die "push: You must be in a change branch to push it\n";
+
+    if ($Options{update}) {
+        update_branch($branch)
+            or die "push: Non-fast-forward pull. Please, merge or rebase your branch first.\n";
+    }
+
+    if ($Options{rebase}) {
+        cmd qw/git rebase/, $branch;
+    }
+
+    my $refspec = "HEAD:refs/for/$branch";
+
+    my @tags;
+    if (my $topic = $Options{topic}) {
+        push @tags, "topic=$topic";
+    }
+    if (my $reviewers = $Options{reviewer}) {
+        push @tags, map("r=$_", split(/,/, join(',', @$reviewers)));
+    }
+    if (my $ccs = $Options{cc}) {
+        push @tags, map("cc=$_", split(/,/, join(',', @$ccs)));
+    }
+    if (@tags) {
+        $refspec .= '%';
+        $refspec .= join(',', @tags);
+    }
+
+    cmd qw/git push/, $Config{url}, $refspec
+        or die "push: Error pushing change.\n";
+
+    return if $Options{keep};
+
+    cmd qw/git checkout/, $branch;
+
+    cmd qw/git branch -D/, $change_branch;
+}
+
+# git change reviewer [--add USER|GROUP] [--confirm] [--delete USER|GROUP] CHANGE
+sub cmd_reviewer {
+    get_options(
+        'add=s@',
+        'confirm',
+        'delete=s@',
+    );
+
+    my $change = shift
+        or pod2usage "reviewer: Missing CHANGE.\n";
+
+    # First try to make all deletions
+    if (my $users = $Options{delete}) {
+        foreach my $user (split(/,/, join(',', @$users))) {
+            gerrit(DELETE => "/changes/$change/reviewers/$user");
+        }
+    }
+
+    # Second try to make all additions
+    if (my $users = $Options{add}) {
+        my $confirm = $Options{confirm} ? 'true' : 'false';
+        foreach my $user (split(/,/, join(',', @$users))) {
+            gerrit(POST => "/changes/$change/reviewers/$user", { reviewer => $user, confirm => $confirm});
+        }
+    }
+
+    # Finally, list current reviewers
+    my @reviewers = gerrit(GET => "/changes/$change/reviewers");
+    print "There are ", scalar(@reviewers), " reviewers currently:\n";
+    foreach my $reviewer (@reviewers) {
+        print "$reviewer->{name}\t$reviewer->{email}\t";
+        foreach my $approval (sort keys $reviewer->{approvals}) {
+            print "$approval:$reviewer->{approvals}{$approval}";
+        } continue {
+            print ", ";
+        }
+        print "\n";
+    }
+}
+
+sub cmd_review {
+    get_options(
+        'message=s',
+    );
+
+    my $vote = shift
+        or pod2usage "review: Missing VOTE.\n";
+    $vote =~ /^[+-]?[012]$/
+        or pod2usage "review: Invalid vote ($vote). It must be from -2 to +2.\n";
+
+    my $change = shift
+        or pod2usage "review: Missing CHANGE.\n";
+
+    my %review = ( labels => { 'Code-Review' => $vote } );
+    $review{message} = $Options{message} if $Options{message};
+
+    gerrit(POST => "/changes/$change/revisions/current/review", \%review);
+}
+
+sub cmd_abandon {
+    get_options(
+        'message=s',
+    );
+
+    my ($change) = @_;
+
+    my @args = ("/changes/$change/abandon");
+    push @args, { message => $Options{message} } if $Options{message};
+    gerrit(POST => @args);
+}
+
+sub cmd_restore {
+    get_options(
+        'message=s',
+    );
+
+    my ($change) = @_;
+
+    my @args = ("/changes/$change/restore");
+    push @args, { message => $Options{message} } if $Options{message};
+    gerrit(POST => @args);
+}
+
+sub cmd_revert {
+    get_options(
+        'message=s',
+    );
+
+    my ($change) = @_;
+
+    my @args = ("/changes/$change/revert");
+    push @args, { message => $Options{message} } if $Options{message};
+    gerrit(POST => @args);
+}
+
+sub cmd_submit {
+    get_options(
+        'wait-for-merge',
+    );
+
+    my ($change) = @_;
+
+    my @args = ("/changes/$change/submit");
+    push @args, { wait_for_merge => 1 } if $Options{'wait-for-merge'};
+    gerrit(POST => @args);
+}
+
+# MAIN
+
+grok_config;
+
+my $command = shift
+    or die pod2usage("Missing command name");
+
+{
+    no strict 'refs';
+    my $cmd = "cmd_$command";
+    &$cmd(@ARGV);
+}
+
+__END__
+=head1 NAME
+
+git-change - Git extension to implement a Gerrit workflow
+
+=head1 SYNOPSIS
+
+    git change new        [--update] TOPIC [BRANCH]
+    git change query      [--limit LIMIT] [--verbose] QUERY*
+    git change show       CHANGE
+    git change checkout   CHANGE
+    git change push       [--keep] [--rebase] [--update] [--reviewer USER] [--cc USER]
+    git change reviewer   [--add USER|GROUP] [--confirm] [--delete USER|GROUP] CHANGE
+    git change review     [--message TEXT] {-2..+2} CHANGE
+    git change abandon    [--message TEXT] CHANGE
+    git change restore    [--message TEXT] CHANGE
+    git change revert     [--message TEXT] CHANGE
+    git change submit     [--wait-for-merge] CHANGE
+
+    git change setup
+    git change log
+    git change cherrypick [--no-commit] [--indicate] CHANGE
+    git change diff       CHANGE-RANGE
+
+=head1 OPTIONS
+
+=over
+
+=item
+
+=back
+
+=head1 DESCRIPTION
+
+=head1 SEE ALSO
+
+=head1 COPYRIGHT
+
+Copyright 2013 CPqD.
+
+This program is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself.
+
+=head1 AUTHOR
+
+Gustavo Chaves <gustavo@cpqd.com.br>

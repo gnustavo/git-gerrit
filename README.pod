@@ -1,0 +1,20 @@
+=head1 NAME
+
+git-change - Git extension to implement a Gerrit workflow
+
+=head1 DESCRIPTION
+
+WARNING: THIS IS STILL VERY ALPHA CODE.
+
+This script attempts to be a reimplementation of the ideas embodied in
+the L<git-review|https://github.com/openstack-infra/git-review> script
+to make it easier to work with Gerrit Code Review.
+
+Its interface is going to be very different because it's being
+implemented on top of the newer Gerrit's L<REST
+API|http://gerrit-documentation.googlecode.com/svn/Documentation/2.6/rest-api.html>,
+while C<git-review> is implemented on top of Gerrit's older L<SSH
+API|http://gerrit-documentation.googlecode.com/svn/Documentation/2.6/cmd-index.html>.
+
+It's still very crude and untested. I'm using Github mostly as a
+backup at this point. Be warned.
