@@ -12,24 +12,23 @@ use URI::Escape;
 use lib '/home/gustavo/git/mine/gerrit-rest/lib';
 use Gerrit::REST;
 
-my %Options = (
-    verbose => 0,
-);
+# The %Options hash is used to hold the command line options passed to
+# all git-change subcommands. The --verbose option is common to all of
+# them. Each subcommand supports a specific set of options which are
+# grokked by the get_options routine below.
+
+my %Options = ( verbose => 0 );
 sub get_options {
     my ($optref, @opt_specs) = @_;
     return GetOptions(\%Options, 'verbose+', @opt_specs)
         or pod2usage(2);
 }
 
-sub info {
-    my ($msg, $level) = @_;
-    $level //= 1;
-    warn $msg, "\n" if $Options{verbose} >= $level;
-}
+# 
 
 sub cmd {
     my ($cmd) = @_;
-    warn "CMD: $cmd\n";
+    warn "CMD: $cmd\n" if $Options{verbose};
     return system($cmd) == 0;
 }
 
@@ -39,7 +38,7 @@ my %Config = (
     port     => 443,
 );
 sub grok_config {
-    info "Grokking git-change configuration...";
+    warn "CMD: git config --get-regexp \"^git-change\\.\"\n";
     {
         open my $pipe, '-|', 'git config --get-regexp "^git-change\."';
         while (<$pipe>) {
@@ -128,7 +127,7 @@ sub gerrit {
         }
     }
 
-    warn join(' ', 'Gerrit:', $method, @_), "\n";
+    warn join(' ', 'Gerrit:', $method, @_), "\n" if $Options{verbose};
 
     return $gerrit->$method(@_);
 }
@@ -514,4 +513,4 @@ it under the same terms as Perl itself.
 
 =head1 AUTHOR
 
-Gustavo Chaves <gustavo@cpqd.com.br>
+Gustavo Chaves <gnustavo@cpan.org>
