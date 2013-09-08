@@ -176,7 +176,7 @@ sub current_branch {
 sub update_branch {
     my ($branch) = @_;
 
-    cmd qw/git fetch/, $Config{url}, "$branch:$branch";
+    cmd "git fetch $Config{url} $branch:$branch";
 }
 
 sub cmd_new {
@@ -200,7 +200,7 @@ sub cmd_new {
             or die "new: Non-fast-forward pull. Please, merge or rebase your branch first.\n";
     }
 
-    cmd qw:git checkout -b change/branch/topic:, $branch;
+    cmd "git checkout -b change/$branch/$topic";
 }
 
 sub cmd_query {
@@ -287,7 +287,7 @@ sub cmd_push {
     }
 
     if ($Options{rebase}) {
-        cmd qw/git rebase/, $branch;
+        cmd "git rebase $branch";
     }
 
     my $refspec = "HEAD:refs/for/$branch";
@@ -307,17 +307,16 @@ sub cmd_push {
         $refspec .= join(',', @tags);
     }
 
-    cmd qw/git push/, $Config{url}, $refspec
+    cmd "git push $Config{url} $refspec"
         or die "push: Error pushing change.\n";
 
     return if $Options{keep};
 
-    cmd qw/git checkout/, $branch;
+    cmd "git checkout $branch";
 
-    cmd qw/git branch -D/, $change_branch;
+    cmd "git branch -D $change_branch";
 }
 
-# git change reviewer [--add USER|GROUP] [--confirm] [--delete USER|GROUP] CHANGE
 sub cmd_reviewer {
     get_options(
         'add=s@',
