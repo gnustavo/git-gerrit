@@ -24,13 +24,16 @@ sub get_options {
         or pod2usage(2);
 }
 
-# 
+# The cmd routine is used to invoke shell commands, usually git. It
+# prints out the command before invoking it in verbose operation.
 
 sub cmd {
     my ($cmd) = @_;
     warn "CMD: $cmd\n" if $Options{verbose};
     return system($cmd) == 0;
 }
+
+# The %Config hash holds the git-change section configuration options.
 
 my %Config = (
     protocol => 'https',
