@@ -261,7 +261,7 @@ EOF
     }
 
     for my $key (qw/project branch topic created updated status reviewed mergeable/) {
-        printf "%-12s %s\n", "\l$key\E:", $change->{$key}
+        printf "%-12s %s\n", "\u$key:", $change->{$key}
             if exists $change->{$key};
     }
 
