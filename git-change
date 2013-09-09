@@ -217,21 +217,21 @@ sub cmd_query {
     for (my $i=0; $i < @$changes; ++$i) {
         print "[[$_[$i]]]\n";
         next unless @{$changes->[$i]};
-        if ($Options{verbose}) {
-            require Data::Dumper;
-            print Data::Dumper::Dumper($changes->[$i]);
-        } else {
-            printf $format, 'ID', 'STATUS', 'UPDATED', 'PROJECT', 'BRANCH', 'OWNER', 'SUBJECT';
-            foreach my $change (sort {$b->{updated} cmp $a->{updated}} @{$changes->[$i]}) {
-                printf $format,
-                    $change->{_number},
-                    $change->{status},
-                    substr($change->{updated}, 0, 19),
-                    $change->{project},
-                    $change->{branch},
-                    substr($change->{owner}{name}, 0, 24),
-                    $change->{subject};
+        printf $format, 'ID', 'STATUS', 'UPDATED', 'PROJECT', 'BRANCH', 'OWNER', 'SUBJECT';
+        foreach my $change (sort {$b->{updated} cmp $a->{updated}} @{$changes->[$i]}) {
+            if ($Options{verbose}) {
+                if (my $topic = gerrit(GET => "/changes/$change->{id}/topic")) {
+                    $change->{branch} .= " ($topic)";
+                }
             }
+            printf $format,
+                   $change->{_number},
+                   $change->{status},
+                   substr($change->{updated}, 0, 19),
+                   $change->{project},
+                   $change->{branch},
+                   substr($change->{owner}{name}, 0, 24),
+                   $change->{subject};
         }
     }
 }
