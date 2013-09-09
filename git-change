@@ -140,13 +140,18 @@ sub query_changes {
     # "My Changes" dashboard.
     my @queries = @_ ? @_ : qw/is:open+owner:self is:open+reviewer:self+-owner:self/;
 
-    # The query is always restricted to the current project's reviews.
-    my $project = uri_escape_utf8($Config{project});
-    my $query   = join '&', map "q=project:$project+$_", @queries;
+    # If we're inside a git repository, restrict the query to the
+    # current project's reviews.
+    if (my $project = $Config{project}) {
+        $project = uri_escape_utf8($project);
+        @queries = map "q=project:$project+$_", @queries;
+    }
 
-    $query .= "&n=$Options{limit}" if $Options{limit};
+    push @queries, "n=$Options{limit}" if $Options{limit};
 
-    my $changes = gerrit(GET => "/changes/?$query&o=DETAILED_ACCOUNTS");
+    push @queries, "o=DETAILED_ACCOUNTS";
+
+    my $changes = gerrit(GET => "/changes/?" . join('&', @queries));
     $changes = [$changes] if ref $changes->[0] eq 'HASH';
 
     return $changes;
