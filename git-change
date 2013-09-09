@@ -237,14 +237,34 @@ sub cmd_query {
 }
 
 sub cmd_show {
-    my $changeid = shift
+    my $id = shift
         or pod2usage "show: Missing CHANGE.\n";
 
-    my $change = gerrit(GET => "/changes/$changeid");
-    for my $key (qw/id subject created updated status reviewed mergeable/) {
-        print "$key: $change->{key}\n" if exists $change->{$key};
+    my $change = gerrit(GET => "/changes/$id/detail");
+
+    print <<EOF;
+Change-Num: $change->{_number}
+Change-Id:  $change->{change_id}
+Subject:    $change->{subject}
+Owner:      $change->{owner}{name}
+EOF
+
+    if ($Options{verbose}) {
+        if (my $topic = gerrit(GET => "/changes/$id/topic")) {
+            $change->{topic} = $topic;
+        }
     }
-    print "owner: $change->{owner}{name}\n";
+
+    for my $key (qw/project branch topic created updated status reviewed mergeable/) {
+        printf "%-12s %s\n", "\l$key\E:", $change->{$key}
+            if exists $change->{$key};
+    }
+
+    for my $label (sort keys %{$change->{permited_labels}}) {
+        for my $review (sort {$a->{name} cmp $b->{name}} @{$change->{labels}{$label}{all}}) {
+            printf "%-12s %-32s %+2d\n", "$label:", @{$review}{qw/name value/};
+        }
+    }
 }
 
 sub cmd_checkout {
