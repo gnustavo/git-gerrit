@@ -53,15 +53,20 @@ sub grok_config {
         }
     }
 
-    for my $key (qw/protocol username host port project/) {
-        exists $Config{$key}
-            or die "You must set the git-change.$key configuration variable.\n";
-    }
-
-    $Config{url} = URI->new(sprintf('%s://%s@%s:%s', @Config{qw/protocol username host port/}));
-
     # FIXME: Some of these variables should be settable via the
     # .gitchange file or via environment variables.
+}
+
+sub gerrit_url {
+    unless (exists $Config{url}) {
+        for my $key (qw/protocol username host port/) {
+            exists $Config{$key}
+                or die "You must set the git-change.$key configuration variable.\n";
+        }
+
+        $Config{url} = URI->new(sprintf('%s://%s@%s:%s', @Config{qw/protocol username host port/}));
+    }
+    return $Config{url};
 }
 
 sub get_credentials {
@@ -120,7 +125,7 @@ sub gerrit {
     state $gerrit;
     unless ($gerrit) {
         my ($username, $password) = get_credentials;
-        $gerrit = Gerrit::REST->new($Config{url}, $username, $password);
+        $gerrit = Gerrit::REST->new(gerrit_url(), $username, $password);
         eval { $gerrit->GET("/projects/" . uri_escape_utf8($Config{project})) };
         if ($@) {
             set_credentials($username, $password, 'reject');
@@ -183,7 +188,8 @@ sub current_branch {
 sub update_branch {
     my ($branch) = @_;
 
-    cmd "git fetch $Config{url} $branch:$branch";
+    my $url = gerrit_url();
+    cmd "git fetch $url $branch:$branch";
 }
 
 sub cmd_new {
@@ -334,7 +340,8 @@ sub cmd_push {
         $refspec .= join(',', @tags);
     }
 
-    cmd "git push $Config{url} $refspec"
+    my $url = gerrit_url();
+    cmd "git push $url $refspec"
         or die "push: Error pushing change.\n";
 
     return if $Options{keep};
