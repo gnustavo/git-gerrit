@@ -18,3 +18,57 @@ API|http://gerrit-documentation.googlecode.com/svn/Documentation/2.6/cmd-index.h
 
 It's still very crude and untested. I'm using Github mostly as a
 backup at this point. Be warned.
+
+=head1 TODO
+
+In random order:
+
+=over
+
+=item * chose another name, since git-change is L<taken|https://github.com/Nextdoor/git-change>
+
+=item * Document, document, document, ...
+
+=item * Test, test, test, ...
+
+=item * checkout CHANGE.patchsetNumber
+
+Allow for the checkout of a specific patchset of a change.
+
+=item * implement 'cherrypick'
+
+=item * implement 'diff'
+
+=item * implement the '--dry-run' option
+
+=item * implement 'setup'
+
+Make it interactive by detection.
+
+Download Gerrit's commit-msg hook automatically
+
+=item * check and warn about multi-change pushes
+
+=item * implement draft submittion
+
+=item * implement 'log'
+
+=item * invoke EDITOR in the absense of the --message option
+
+=item * implement extensibility by plugins
+
+An example of a useful plugin would be to integrate change management
+with JIRA or other ticketing systems. Something like
+L<this|https://npmjs.org/package/git-jira>.
+
+Another one would be to invite reviewers based on the history of the
+files/lines touched by the change.
+
+=item * implement a 'list' command to list the refs/heads/change/* branches
+
+=item * implement a 'purge' command to get rid of merged/abandoned change branches
+
+=item * implement a bash completion script
+
+=back
+
