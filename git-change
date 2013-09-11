@@ -41,7 +41,8 @@ my %Config = (
     port     => 443,
 );
 sub grok_config {
-    warn "CMD: git config --get-regexp \"^git-change\\.\"\n";
+    warn "CMD: git config --get-regexp \"^git-change\\.\"\n"
+        if $Options{verbose};
     {
         open my $pipe, '-|', 'git config --get-regexp "^git-change\."';
         while (<$pipe>) {
