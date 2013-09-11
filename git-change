@@ -53,6 +53,12 @@ sub grok_config {
         }
     }
 
+    # Override option defaults
+    for my $opt (qw/verbose/) {
+        $Options{$opt} = $Config{"default-$opt"}
+            if exists $Config{"default-$opt"};
+    }
+
     # FIXME: Some of these variables should be settable via the
     # .gitchange file or via environment variables.
 }
