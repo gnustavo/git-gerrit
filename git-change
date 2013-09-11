@@ -35,11 +35,7 @@ sub cmd {
 
 # The %Config hash holds the git-change section configuration options.
 
-my %Config = (
-    protocol => 'https',
-    username => $ENV{USER},
-    port     => 443,
-);
+my %Config;
 sub grok_config {
     warn "CMD: git config --get-regexp \"^git-change\\.\"\n"
         if $Options{verbose};
@@ -197,6 +193,49 @@ sub update_branch {
 
     my $url = gerrit_url();
     cmd "git fetch $url $branch:$branch";
+}
+
+sub cmd_setup {
+    eval { require Term::Prompt };
+    if ($@) {
+        die <<EOF;
+
+You must have the Term::Prompt module installed to use the interactive
+setup. Or you can use the 'git config' command to manually define the
+following options:
+
+* git-change.protocol (http or https)
+* git-change.username (the username you use to login to Gerrit)
+* git-change.hostname (Gerrit's hostname)
+* git-change.port     (the TCP port Gerrit listens on)
+
+EOF
+    }
+
+    warn <<EOF;
+
+Please, tell me how to connect to your Gerrit server.
+
+EOF
+
+    my %setup;
+
+    $setup{protocol} = Term::Prompt::prompt(
+        e => 'git-change.protocol:', 'http or https?', $Config{protocol} || $ENV{USER}, qr/^(http|https)$/);
+    $setup{username} = Term::Prompt::prompt(
+        e => 'git-change.username:', 'Your Gerrit user', $Config{username} || $ENV{USER}, qr/^\w+$/i);
+    $setup{hostname} = Term::Prompt::prompt(
+        e => 'git-change.hostname:', "Gerrit's hostname", $Config{hostname}, qr/^\S+$/);
+    $setup{port}     = Term::Prompt::prompt(
+        n => 'git-change.port:', "Gerrit's HTTP[S] port number",
+        $Config{port} || ($setup{protocol} eq 'http' ? 80 : 443));
+
+    for my $option (qw/protocol username hostname port/) {
+        if (! $Config{$option} || $Config{$option} ne $setup{$option}) {
+            $Config{$option} = $setup{$option};
+            cmd "git config git-change.$option $setup{$option}";
+        }
+    }
 }
 
 sub cmd_new {
