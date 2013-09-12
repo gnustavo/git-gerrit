@@ -195,7 +195,12 @@ sub update_branch {
     cmd "git fetch $url $branch:$branch";
 }
 
-sub cmd_setup {
+############################################################
+# SUBCOMMANDS
+
+my %commands;
+
+$commands{setup} = sub {
     get_options(
         'global',
     );
@@ -242,9 +247,9 @@ EOF
             cmd "git config $scope git-change.$option $setup{$option}";
         }
     }
-}
+};
 
-sub cmd_new {
+$commands{new} = sub {
     get_options(
         'update',
     );
@@ -266,9 +271,9 @@ sub cmd_new {
     }
 
     cmd "git checkout -b change/$branch/$topic";
-}
+};
 
-sub cmd_query {
+$commands{query} = sub {
     get_options(
         'limit=i',
     );
@@ -297,9 +302,9 @@ sub cmd_query {
                    $change->{subject};
         }
     }
-}
+};
 
-sub cmd_show {
+$commands{show} = sub {
     my $id = shift
         or pod2usage "show: Missing CHANGE.\n";
 
@@ -328,9 +333,9 @@ EOF
             printf "%-12s %-32s %+2d\n", "$label:", @{$review}{qw/name value/};
         }
     }
-}
+};
 
-sub cmd_checkout {
+$commands{checkout} = sub {
     my ($id) = shift or pod2usage("You have to specify a CHANGE");
 
     my $change = get_change($id);
@@ -345,9 +350,9 @@ sub cmd_checkout {
         or die "Can't fetch $url\n";
 
     cmd "git checkout $branch";
-}
+};
 
-sub cmd_push {
+$commands{push} = sub {
     get_options(
         'keep',
         'rebase',
@@ -401,9 +406,9 @@ sub cmd_push {
     cmd "git checkout $branch";
 
     cmd "git branch -D $change_branch";
-}
+};
 
-sub cmd_reviewer {
+$commands{reviewer} = sub {
     get_options(
         'add=s@',
         'confirm',
@@ -440,9 +445,9 @@ sub cmd_reviewer {
         }
         print "\n";
     }
-}
+};
 
-sub cmd_review {
+$commands{review} = sub {
     get_options(
         'message=s',
     );
@@ -459,9 +464,9 @@ sub cmd_review {
     $review{message} = $Options{message} if $Options{message};
 
     gerrit(POST => "/changes/$change/revisions/current/review", \%review);
-}
+};
 
-sub cmd_abandon {
+$commands{abandon} = sub {
     get_options(
         'message=s',
     );
@@ -471,9 +476,9 @@ sub cmd_abandon {
     my @args = ("/changes/$change/abandon");
     push @args, { message => $Options{message} } if $Options{message};
     gerrit(POST => @args);
-}
+};
 
-sub cmd_restore {
+$commands{restore} = sub {
     get_options(
         'message=s',
     );
@@ -483,9 +488,9 @@ sub cmd_restore {
     my @args = ("/changes/$change/restore");
     push @args, { message => $Options{message} } if $Options{message};
     gerrit(POST => @args);
-}
+};
 
-sub cmd_revert {
+$commands{revert} = sub {
     get_options(
         'message=s',
     );
@@ -495,9 +500,9 @@ sub cmd_revert {
     my @args = ("/changes/$change/revert");
     push @args, { message => $Options{message} } if $Options{message};
     gerrit(POST => @args);
-}
+};
 
-sub cmd_submit {
+$commands{submit} = sub {
     get_options(
         'wait-for-merge',
     );
@@ -507,7 +512,7 @@ sub cmd_submit {
     my @args = ("/changes/$change/submit");
     push @args, { wait_for_merge => 1 } if $Options{'wait-for-merge'};
     gerrit(POST => @args);
-}
+};
 
 # MAIN
 
@@ -516,11 +521,10 @@ grok_config;
 my $command = shift
     or die pod2usage("Missing command name");
 
-{
-    no strict 'refs';
-    my $cmd = "cmd_$command";
-    &$cmd(@ARGV);
-}
+exists $commands{$command}
+    or die pod2usage("Invalid command: $command");
+
+$commands{$command}->(@ARGV);
 
 __END__
 =head1 NAME
