@@ -217,6 +217,7 @@ following options:
 * git-change.username (the username you use to login to Gerrit)
 * git-change.hostname (Gerrit's hostname)
 * git-change.port     (the TCP port Gerrit listens on)
+* git-change.project  (Gerrit's project name)
 
 EOF
     }
@@ -238,11 +239,14 @@ EOF
     $setup{port}     = Term::Prompt::prompt(
         n => 'git-change.port:', "Gerrit's HTTP[S] port number",
         $Config{port} || ($setup{protocol} eq 'http' ? 80 : 443));
+    $setup{project}  = Term::Prompt::prompt(
+        e => 'git-change.project:', "Gerrit's project name", $Config{project}, qr/^\S+$/);
 
     my $scope = $Options{global} ? '--global' : '--local';
 
-    for my $option (qw/protocol username hostname port/) {
+    for my $option (qw/protocol username hostname port project/) {
         if (! $Config{$option} || $Config{$option} ne $setup{$option}) {
+            local $scope = '--local' if $option eq 'project'; # The project name is always in the local scope
             $Config{$option} = $setup{$option};
             cmd "git config $scope git-change.$option $setup{$option}";
         }
