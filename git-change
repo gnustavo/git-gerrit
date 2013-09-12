@@ -196,6 +196,10 @@ sub update_branch {
 }
 
 sub cmd_setup {
+    get_options(
+        'global',
+    );
+
     eval { require Term::Prompt };
     if ($@) {
         die <<EOF;
@@ -230,10 +234,12 @@ EOF
         n => 'git-change.port:', "Gerrit's HTTP[S] port number",
         $Config{port} || ($setup{protocol} eq 'http' ? 80 : 443));
 
+    my $scope = $Options{global} ? '--global' : '--local';
+
     for my $option (qw/protocol username hostname port/) {
         if (! $Config{$option} || $Config{$option} ne $setup{$option}) {
             $Config{$option} = $setup{$option};
-            cmd "git config git-change.$option $setup{$option}";
+            cmd "git config $scope git-change.$option $setup{$option}";
         }
     }
 }
@@ -534,8 +540,8 @@ git-change - Git extension to implement a Gerrit workflow
     git change restore    [--message TEXT] CHANGE
     git change revert     [--message TEXT] CHANGE
     git change submit     [--wait-for-merge] CHANGE
+    git change setup      [--global]
 
-    git change setup
     git change log
     git change cherrypick [--no-commit] [--indicate] CHANGE
     git change diff       CHANGE-RANGE
