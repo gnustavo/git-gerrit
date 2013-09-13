@@ -13,7 +13,7 @@ use lib '/home/gustavo/git/mine/gerrit-rest/lib';
 use Gerrit::REST;
 
 # The %Options hash is used to hold the command line options passed to
-# all git-change subcommands. The --verbose option is common to all of
+# all git-gerrit subcommands. The --verbose option is common to all of
 # them. Each subcommand supports a specific set of options which are
 # grokked by the get_options routine below.
 
@@ -33,16 +33,16 @@ sub cmd {
     return system($cmd) == 0;
 }
 
-# The %Config hash holds the git-change section configuration options.
+# The %Config hash holds the git-gerrit section configuration options.
 
 my %Config;
 sub grok_config {
-    warn "CMD: git config --get-regexp \"^git-change\\.\"\n"
+    warn "CMD: git config --get-regexp \"^git-gerrit\\.\"\n"
         if $Options{verbose};
     {
-        open my $pipe, '-|', 'git config --get-regexp "^git-change\."';
+        open my $pipe, '-|', 'git config --get-regexp "^git-gerrit\."';
         while (<$pipe>) {
-            if (/^git-change\.(\S+)\s+(.*)/) {
+            if (/^git-gerrit\.(\S+)\s+(.*)/) {
                 $Config{$1} = $2;
             } else {
                 warn "Strange git-config output: $_";
@@ -57,14 +57,14 @@ sub grok_config {
     }
 
     # FIXME: Some of these variables should be settable via the
-    # .gitchange file or via environment variables.
+    # .gitgerrit file or via environment variables.
 }
 
 sub gerrit_url {
     unless (exists $Config{url}) {
         for my $key (qw/protocol username host port/) {
             exists $Config{$key}
-                or die "You must set the git-change.$key configuration variable.\n";
+                or die "You must set the git-gerrit.$key configuration variable.\n";
         }
 
         $Config{url} = URI->new(sprintf('%s://%s@%s:%s', @Config{qw/protocol username host port/}));
@@ -213,11 +213,11 @@ You must have the Term::Prompt module installed to use the interactive
 setup. Or you can use the 'git config' command to manually define the
 following options:
 
-* git-change.protocol (http or https)
-* git-change.username (the username you use to login to Gerrit)
-* git-change.hostname (Gerrit's hostname)
-* git-change.port     (the TCP port Gerrit listens on)
-* git-change.project  (Gerrit's project name)
+* git-gerrit.protocol (http or https)
+* git-gerrit.username (the username you use to login to Gerrit)
+* git-gerrit.hostname (Gerrit's hostname)
+* git-gerrit.port     (the TCP port Gerrit listens on)
+* git-gerrit.project  (Gerrit's project name)
 
 EOF
     }
@@ -231,16 +231,16 @@ EOF
     my %setup;
 
     $setup{protocol} = Term::Prompt::prompt(
-        e => 'git-change.protocol:', 'http or https?', $Config{protocol} || $ENV{USER}, qr/^(http|https)$/);
+        e => 'git-gerrit.protocol:', 'http or https?', $Config{protocol} || $ENV{USER}, qr/^(http|https)$/);
     $setup{username} = Term::Prompt::prompt(
-        e => 'git-change.username:', 'Your Gerrit user', $Config{username} || $ENV{USER}, qr/^\w+$/i);
+        e => 'git-gerrit.username:', 'Your Gerrit user', $Config{username} || $ENV{USER}, qr/^\w+$/i);
     $setup{hostname} = Term::Prompt::prompt(
-        e => 'git-change.hostname:', "Gerrit's hostname", $Config{hostname}, qr/^\S+$/);
+        e => 'git-gerrit.hostname:', "Gerrit's hostname", $Config{hostname}, qr/^\S+$/);
     $setup{port}     = Term::Prompt::prompt(
-        n => 'git-change.port:', "Gerrit's HTTP[S] port number",
+        n => 'git-gerrit.port:', "Gerrit's HTTP[S] port number",
         $Config{port} || ($setup{protocol} eq 'http' ? 80 : 443));
     $setup{project}  = Term::Prompt::prompt(
-        e => 'git-change.project:', "Gerrit's project name", $Config{project}, qr/^\S+$/);
+        e => 'git-gerrit.project:', "Gerrit's project name", $Config{project}, qr/^\S+$/);
 
     my $scope = $Options{global} ? '--global' : '--local';
 
@@ -248,7 +248,7 @@ EOF
         if (! $Config{$option} || $Config{$option} ne $setup{$option}) {
             local $scope = '--local' if $option eq 'project'; # The project name is always in the local scope
             $Config{$option} = $setup{$option};
-            cmd "git config $scope git-change.$option $setup{$option}";
+            cmd "git config $scope git-gerrit.$option $setup{$option}";
         }
     }
 };
@@ -533,26 +533,26 @@ $commands{$command}->(@ARGV);
 __END__
 =head1 NAME
 
-git-change - Git extension to implement a Gerrit workflow
+git-gerrit - Git extension to implement a Gerrit workflow
 
 =head1 SYNOPSIS
 
-    git change new        [--update] TOPIC [BRANCH]
-    git change query      [--limit LIMIT] [--verbose] QUERY*
-    git change show       CHANGE
-    git change checkout   CHANGE
-    git change push       [--keep] [--rebase] [--update] [--reviewer USER] [--cc USER]
-    git change reviewer   [--add USER|GROUP] [--confirm] [--delete USER|GROUP] CHANGE
-    git change review     [--message TEXT] {-2..+2} CHANGE
-    git change abandon    [--message TEXT] CHANGE
-    git change restore    [--message TEXT] CHANGE
-    git change revert     [--message TEXT] CHANGE
-    git change submit     [--wait-for-merge] CHANGE
-    git change setup      [--global]
+    git gerrit new        [--update] TOPIC [BRANCH]
+    git gerrit query      [--limit LIMIT] [--verbose] QUERY*
+    git gerrit show       CHANGE
+    git gerrit checkout   CHANGE
+    git gerrit push       [--keep] [--rebase] [--update] [--reviewer USER] [--cc USER]
+    git gerrit reviewer   [--add USER|GROUP] [--confirm] [--delete USER|GROUP] CHANGE
+    git gerrit review     [--message TEXT] {-2..+2} CHANGE
+    git gerrit abandon    [--message TEXT] CHANGE
+    git gerrit restore    [--message TEXT] CHANGE
+    git gerrit revert     [--message TEXT] CHANGE
+    git gerrit submit     [--wait-for-merge] CHANGE
+    git gerrit setup      [--global]
 
-    git change log
-    git change cherrypick [--no-commit] [--indicate] CHANGE
-    git change diff       CHANGE-RANGE
+    git gerrit log
+    git gerrit cherrypick [--no-commit] [--indicate] CHANGE
+    git gerrit diff       CHANGE-RANGE
 
 =head1 OPTIONS
 

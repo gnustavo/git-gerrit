@@ -1,6 +1,6 @@
 =head1 NAME
 
-git-change - Git extension to implement a Gerrit workflow
+git-gerrit - Git extension to implement a Gerrit workflow
 
 =head1 DESCRIPTION
 
@@ -24,8 +24,6 @@ backup at this point. Be warned.
 In random order:
 
 =over
-
-=item * chose another name, since git-change is L<taken|https://github.com/Nextdoor/git-change>
 
 =item * Document, document, document, ...
 
