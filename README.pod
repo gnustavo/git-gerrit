@@ -8,7 +8,9 @@ WARNING: THIS IS STILL VERY ALPHA CODE.
 
 This script attempts to be a reimplementation of the ideas embodied in
 the L<git-review|https://github.com/openstack-infra/git-review> script
-to make it easier to work with Gerrit Code Review.
+to make it easier to work with Gerrit Code Review. It also draws some
+ideas from the L<git-change|https://github.com/Nextdoor/git-change>
+script.
 
 Its interface is going to be very different because it's being
 implemented on top of the newer Gerrit's L<REST
