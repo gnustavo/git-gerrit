@@ -33,6 +33,72 @@ sub cmd {
     return system($cmd) == 0;
 }
 
+sub grok_remotes {
+    my %remotes;
+    open my $pipe, '-|', join(' ', "git remote -v show -n", @_)
+        or die "ERROR: can't fork git-remote: $!\n";
+    while (<$pipe>) {
+        # save only remotes using http/https
+        if (/(?<name>\S+)\s+(?<url>http\S+)/i) {
+            $remotes{$+{name}} = $+{url};
+        }
+    }
+    close $pipe
+        or die "You have to be inside a git repository to use git-gerrit.\n";
+    return \%remotes;
+}
+
+# Grok the Gerrit remote and offers to set it interactivelly on
+# git-gerrit.remote. It returns the remote name or dies.
+
+sub grok_remote {
+    my $remotes = grok_remotes();
+
+    if (%$remotes) {
+        # We require Term::Prompt to ask the user interactivelly for
+        # the remote. If we can't, we die with a helpful message.
+        eval { require Term::Prompt };
+        if ($@) {
+            die <<EOF;
+
+You must have the Term::Prompt module installed to use the interactive
+setup. Or you can manually set the Gerrit remote like this:
+
+    git config git-gerrit.remote NAME
+
+EOF
+        }
+
+        my @remotes = sort keys %$remotes;
+        my @items   = map {"$_ ($remotes->{$_})"} @remotes;
+        push @items, 'none of the above';
+        my $item = Term::Prompt::prompt(
+            'm',
+            {
+                prompt => 'prompt',
+                title  => 'Please, tell me which remote refers to your Gerrit server:',
+                items  => \@items,
+                accept_empty_selection => 0,
+            },
+        );
+        if ($item <= @remotes) {
+            my $remote = $remotes[$item];
+            cmd "git config git-gerrit.remote $remote";
+            return $remote;
+        }
+    }
+
+    die <<EOF;
+
+To use git-gerrit you have to set a git remote referring to your
+Gerrit server via a HTTP/S URL. Please, set one using the following
+command and try again:
+
+    git remote add NAME URL
+
+EOF
+}
+
 # The %Config hash holds the git-gerrit section configuration options.
 
 my %Config;
@@ -56,20 +122,19 @@ sub grok_config {
             if exists $Config{"default-$opt"};
     }
 
+    $Config{remote} //= grok_remote();
+
     # FIXME: Some of these variables should be settable via the
     # .gitgerrit file or via environment variables.
 }
 
 sub gerrit_url {
-    unless (exists $Config{url}) {
-        for my $key (qw/protocol username host port/) {
-            exists $Config{$key}
-                or die "You must set the git-gerrit.$key configuration variable.\n";
-        }
-
-        $Config{url} = URI->new(sprintf('%s://%s@%s:%s', @Config{qw/protocol username host port/}));
+    unless (exists $Config{gerritURL}) {
+        my $remotes = grok_remotes($Config{remote});
+        $Config{gerritURL} = $remotes->{$Config{remote}}
+            or die "ERROR: can't lookup gerrit URL.\n";
     }
-    return $Config{url};
+    return $Config{gerritURL};
 }
 
 sub get_credentials {
@@ -191,65 +256,13 @@ sub current_branch {
 sub update_branch {
     my ($branch) = @_;
 
-    my $url = gerrit_url();
-    cmd "git fetch $url $branch:$branch";
+    cmd "git fetch $Config{remote} $branch:$branch";
 }
 
 ############################################################
 # SUBCOMMANDS
 
 my %commands;
-
-$commands{setup} = sub {
-    get_options('global');
-
-    eval { require Term::Prompt };
-    if ($@) {
-        die <<EOF;
-
-You must have the Term::Prompt module installed to use the interactive
-setup. Or you can use the 'git config' command to manually define the
-following options:
-
-* git-gerrit.protocol (http or https)
-* git-gerrit.username (the username you use to login to Gerrit)
-* git-gerrit.hostname (Gerrit's hostname)
-* git-gerrit.port     (the TCP port Gerrit listens on)
-* git-gerrit.project  (Gerrit's project name)
-
-EOF
-    }
-
-    warn <<EOF;
-
-Please, tell me how to connect to your Gerrit server.
-
-EOF
-
-    my %setup;
-
-    $setup{protocol} = Term::Prompt::prompt(
-        e => 'git-gerrit.protocol:', 'http or https?', $Config{protocol} || $ENV{USER}, qr/^(http|https)$/);
-    $setup{username} = Term::Prompt::prompt(
-        e => 'git-gerrit.username:', 'Your Gerrit user', $Config{username} || $ENV{USER}, qr/^\w+$/i);
-    $setup{hostname} = Term::Prompt::prompt(
-        e => 'git-gerrit.hostname:', "Gerrit's hostname", $Config{hostname}, qr/^\S+$/);
-    $setup{port}     = Term::Prompt::prompt(
-        n => 'git-gerrit.port:', "Gerrit's HTTP[S] port number",
-        $Config{port} || ($setup{protocol} eq 'http' ? 80 : 443));
-    $setup{project}  = Term::Prompt::prompt(
-        e => 'git-gerrit.project:', "Gerrit's project name", $Config{project}, qr/^\S+$/);
-
-    my $scope = $Options{global} ? '--global' : '--local';
-
-    for my $option (qw/protocol username hostname port project/) {
-        if (! $Config{$option} || $Config{$option} ne $setup{$option}) {
-            local $scope = '--local' if $option eq 'project'; # The project name is always in the local scope
-            $Config{$option} = $setup{$option};
-            cmd "git config $scope git-gerrit.$option $setup{$option}";
-        }
-    }
-};
 
 $commands{new} = sub {
     get_options('update');
@@ -395,8 +408,7 @@ $commands{push} = sub {
         $refspec .= join(',', @tags);
     }
 
-    my $url = gerrit_url();
-    cmd "git push $url $refspec"
+    cmd "git push $Config{remote} $refspec"
         or die "push: Error pushing change.\n";
 
     return if $Options{keep};
@@ -532,7 +544,6 @@ git-gerrit - Git extension to implement a Gerrit workflow
     git gerrit restore    [--message TEXT] CHANGE
     git gerrit revert     [--message TEXT] CHANGE
     git gerrit submit     [--wait-for-merge] CHANGE
-    git gerrit setup      [--global]
 
     git gerrit log
     git gerrit cherrypick [--no-commit] [--indicate] CHANGE
