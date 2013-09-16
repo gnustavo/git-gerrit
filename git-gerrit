@@ -537,13 +537,13 @@ $commands{submit} = sub {
 
 # MAIN
 
-grok_config;
-
 my $command = shift
     or die pod2usage("Missing command name");
 
 exists $commands{$command}
     or die pod2usage("Invalid command: $command");
+
+grok_config;
 
 $commands{$command}->(@ARGV);
 
