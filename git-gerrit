@@ -17,10 +17,10 @@ use Gerrit::REST;
 # them. Each subcommand supports a specific set of options which are
 # grokked by the get_options routine below.
 
-my %Options = ( verbose => 0 );
+my %Options = ( verbose => 0, debug => 0 );
 sub get_options {
     my ($optref, @opt_specs) = @_;
-    return GetOptions(\%Options, 'verbose+', @opt_specs)
+    return GetOptions(\%Options, 'verbose+', 'debug', @opt_specs)
         or pod2usage(2);
 }
 
@@ -29,7 +29,7 @@ sub get_options {
 
 sub cmd {
     my ($cmd) = @_;
-    warn "CMD: $cmd\n" if $Options{verbose};
+    warn "CMD: $cmd\n" if $Options{debug};
     return system($cmd) == 0;
 }
 
@@ -38,7 +38,7 @@ sub cmd {
 my %Config;
 sub grok_config {
     warn "CMD: git config --get-regexp \"^git-gerrit\\.\"\n"
-        if $Options{verbose};
+        if $Options{debug};
     {
         open my $pipe, '-|', 'git config --get-regexp "^git-gerrit\."';
         while (<$pipe>) {
@@ -171,7 +171,7 @@ sub gerrit {
         }
     }
 
-    warn join(' ', 'Gerrit:', $method, @_), "\n" if $Options{verbose};
+    warn join(' ', 'Gerrit:', $method, @_), "\n" if $Options{debug};
 
     return $gerrit->$method(@_);
 }
@@ -235,7 +235,7 @@ my %commands;
 $commands{new} = sub {
     get_options('update');
 
-    my ($topic, $branch) = @_;
+    my ($topic, $branch) = @ARGV;
 
     defined $topic or pod2usage("new: Missing TOPIC");
 
@@ -257,14 +257,12 @@ $commands{new} = sub {
 $commands{query} = sub {
     get_options('limit=i');
 
-    my @queries = @_;
-
-    my $changes = query_changes(@queries);
+    my $changes = query_changes(@ARGV);
 
     # FIXME: consider using Text::Table for formatting
     my $format = "%-5s %-9s %-19s %-20s %-12s %-24s %s\n";
     for (my $i=0; $i < @$changes; ++$i) {
-        print "\n[[$queries[$i]]]\n";
+        print "\n[[$ARGV[$i]]]\n";
         next unless @{$changes->[$i]};
         printf $format, 'ID', 'STATUS', 'UPDATED', 'PROJECT', 'BRANCH', 'OWNER', 'SUBJECT';
         foreach my $change (sort {$b->{updated} cmp $a->{updated}} @{$changes->[$i]}) {
@@ -287,12 +285,12 @@ $commands{query} = sub {
 };
 
 $commands{list} = sub {
-    my @args = @_;
-    $commands{query}(@args, qw/is:open+owner:self is:open+reviewer:self+-owner:self/);
+    push @ARGV, qw/is:open+owner:self is:open+reviewer:self+-owner:self/;
+    $commands{query}();
 };
 
 $commands{show} = sub {
-    my $id = shift
+    my $id = shift @ARGV
         or pod2usage "show: Missing CHANGE.\n";
 
     my $change = gerrit(GET => "/changes/$id/detail");
@@ -323,7 +321,8 @@ EOF
 };
 
 $commands{checkout} = sub {
-    my ($id) = shift or pod2usage("You have to specify a CHANGE");
+    my ($id) = shift @ARGV
+        or pod2usage("You have to specify a CHANGE");
 
     my $change = get_change($id);
 
@@ -401,7 +400,7 @@ $commands{reviewer} = sub {
         'delete=s@',
     );
 
-    my $change = shift
+    my $change = shift @ARGV
         or pod2usage "reviewer: Missing CHANGE.\n";
 
     # First try to make all deletions
@@ -436,12 +435,12 @@ $commands{reviewer} = sub {
 $commands{review} = sub {
     get_options('message=s');
 
-    my $vote = shift
+    my $vote = shift @ARGV
         or pod2usage "review: Missing VOTE.\n";
     $vote =~ /^[+-]?[012]$/
         or pod2usage "review: Invalid vote ($vote). It must be from -2 to +2.\n";
 
-    my $change = shift
+    my $change = shift @ARGV
         or pod2usage "review: Missing CHANGE.\n";
 
     my %review = ( labels => { 'Code-Review' => $vote } );
@@ -453,7 +452,8 @@ $commands{review} = sub {
 $commands{abandon} = sub {
     get_options('message=s');
 
-    my ($change) = @_;
+    my $change = shift @ARGV
+        or pod2usage "review: Missing CHANGE.\n";
 
     my @args = ("/changes/$change/abandon");
     push @args, { message => $Options{message} } if $Options{message};
@@ -463,7 +463,8 @@ $commands{abandon} = sub {
 $commands{restore} = sub {
     get_options('message=s');
 
-    my ($change) = @_;
+    my $change = shift @ARGV
+        or pod2usage "review: Missing CHANGE.\n";
 
     my @args = ("/changes/$change/restore");
     push @args, { message => $Options{message} } if $Options{message};
@@ -473,7 +474,8 @@ $commands{restore} = sub {
 $commands{revert} = sub {
     get_options('message=s');
 
-    my ($change) = @_;
+    my $change = shift @ARGV
+        or pod2usage "review: Missing CHANGE.\n";
 
     my @args = ("/changes/$change/revert");
     push @args, { message => $Options{message} } if $Options{message};
@@ -483,7 +485,8 @@ $commands{revert} = sub {
 $commands{submit} = sub {
     get_options('wait-for-merge');
 
-    my ($change) = @_;
+    my $change = shift @ARGV
+        or pod2usage "review: Missing CHANGE.\n";
 
     my @args = ("/changes/$change/submit");
     push @args, { wait_for_merge => 1 } if $Options{'wait-for-merge'};
@@ -500,7 +503,7 @@ exists $commands{$command}
 
 grok_config;
 
-$commands{$command}->(@ARGV);
+$commands{$command}->();
 
 __END__
 =head1 NAME
