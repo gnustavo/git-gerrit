@@ -33,72 +33,6 @@ sub cmd {
     return system($cmd) == 0;
 }
 
-sub grok_remotes {
-    my %remotes;
-    open my $pipe, '-|', join(' ', "git remote -v show -n", @_)
-        or die "ERROR: can't fork git-remote: $!\n";
-    while (<$pipe>) {
-        # save only remotes using http/https
-        if (/(?<name>\S+)\s+(?<url>http\S+)/i) {
-            $remotes{$+{name}} = $+{url};
-        }
-    }
-    close $pipe
-        or die "You have to be inside a git repository to use git-gerrit.\n";
-    return \%remotes;
-}
-
-# Grok the Gerrit remote and offers to set it interactivelly on
-# git-gerrit.remote. It returns the remote name or dies.
-
-sub grok_remote {
-    my $remotes = grok_remotes();
-
-    if (%$remotes) {
-        # We require Term::Prompt to ask the user interactivelly for
-        # the remote. If we can't, we die with a helpful message.
-        eval { require Term::Prompt };
-        if ($@) {
-            die <<EOF;
-
-You must have the Term::Prompt module installed to use the interactive
-setup. Or you can manually set the Gerrit remote like this:
-
-    git config git-gerrit.remote NAME
-
-EOF
-        }
-
-        my @remotes = sort keys %$remotes;
-        my @items   = map {"$_ ($remotes->{$_})"} @remotes;
-        push @items, 'none of the above';
-        my $item = Term::Prompt::prompt(
-            'm',
-            {
-                prompt => 'prompt',
-                title  => 'Please, tell me which remote refers to your Gerrit server:',
-                items  => \@items,
-                accept_empty_selection => 0,
-            },
-        );
-        if ($item <= @remotes) {
-            my $remote = $remotes[$item];
-            cmd "git config git-gerrit.remote $remote";
-            return $remote;
-        }
-    }
-
-    die <<EOF;
-
-To use git-gerrit you have to set a git remote referring to your
-Gerrit server via a HTTP/S URL. Please, set one using the following
-command and try again:
-
-    git remote add NAME URL
-
-EOF
-}
-
 # The %Config hash holds the git-gerrit section configuration options.
 
 my %Config;
@@ -122,32 +56,126 @@ sub grok_config {
             if exists $Config{"default-$opt"};
     }
 
-    $Config{remote} //= grok_remote();
+    state $remotes //= do {
+        my %remotes;
+        open my $pipe, '-|', join(' ', "git remote -v show -n", @_)
+            or die "ERROR: can't fork git-remote: $!\n";
+        while (<$pipe>) {
+            # save only remotes using http/https
+            if (/(?<name>\S+)\s+(?<url>http\S+)/i) {
+                $remotes{$+{name}} = $+{url};
+            }
+        }
+        close $pipe
+            or die "You have to be inside a git repository to use git-gerrit.\n";
+        \%remotes;
+    };
 
-    # FIXME: Some of these variables should be settable via the
-    # .gitgerrit file or via environment variables.
+    unless ($Config{remote}) {
+        # We require Term::Prompt to ask the user interactivelly for
+        # the remote. If we can't, we die with a helpful message.
+        eval { require Term::Prompt };
+        if ($@) {
+            die <<EOF;
+
+Please, set up the git-gerrit.remote variable with the name of the git
+remote referring to your Gerrit server. Note that it must use an
+HTTP(S) URL. You may set it like this
+
+    git config git-gerrit.remote <remote>
+
+(If you had the Term::Prompt Perl module installed I could ask you the
+remote's name and set it up for you.)
+
+EOF
+        }
+
+        my @remotes = sort keys %$remotes;
+        my @items   = map {"$_ ($remotes->{$_})"} @remotes;
+        push @items, 'None of the above!';
+        my $item = Term::Prompt::prompt(
+            'm',
+            {
+                prompt => 'prompt',
+                title  => "\nPlease, tell me which remote refers to your Gerrit server:",
+                items  => \@items,
+                accept_empty_selection => 0,
+            },
+        );
+        if ($item < @remotes) {
+            my $remote = $remotes[$item];
+            cmd "git config git-gerrit.remote $remote";
+            $Config{remote} = $remote;
+            $Config{url} = $remotes->{$remote};
+        } else {
+            die <<EOF;
+
+To use git-gerrit you have to set a git remote referring to your
+Gerrit server via a HTTP(S) URL. Please, set one using the following
+command and try again:
+
+    git remote add <name> <url>
+
+EOF
+        }
+    }
+
+    unless ($Config{url}) {
+        my $url = $remotes->{$Config{remote}}
+            or die <<EOF;
+
+Your git-gerrit.remote variable is set to '$Config{remote}', but there
+is no remote by that name configured with a HTTP(S) URL. Please, fix
+that configuration variable and try again.
+
+EOF
+        $Config{url} = $url;
+    }
+
+    $Config{url} = URI->new($Config{url});
+
+    # The url's path is the project
+    $Config{project} = substr($Config{url}->path, 1); # the path but the leading slash
+    $Config{url}->path('');     # trim off the path
+
+    return;
 }
 
-sub gerrit_url {
-    unless (exists $Config{gerritURL}) {
-        my $remotes = grok_remotes($Config{remote});
-        $Config{gerritURL} = $remotes->{$Config{remote}}
-            or die "ERROR: can't lookup gerrit URL.\n";
-    }
-    return $Config{gerritURL};
+sub credential_description {
+    my $url = $Config{url};
+
+    my $protocol = $url->scheme;
+    my $host     = $url->host;
+    my $path     = $url->path;
+
+    my $site_description = <<EOF;
+protocol=$protocol
+host=$host
+path=$path
+EOF
+
+    my $username = $url->userinfo;
+    my $user_description = do {
+        if (defined $username) {
+            $username =~ s/:.*//;   # trim off the password, if any
+            "username=$username\n";
+        } else {
+            undef;
+        }
+    };
+
+    return ($site_description, $user_description);
 }
 
 sub get_credentials {
+    my ($site, $user) = credential_description();
+
     # Create a temporary file to hold the credential description
     require File::Temp;
     my ($fh, $credfile) = File::Temp::tempfile(UNLINK => 1);
-    $fh->print(<<EOF);
-protocol=$Config{protocol}
-host=$Config{host}
-path=$Config{project}
-username=$Config{username}
-
-EOF
+    $fh->print($site);
+    $fh->print($user) if $user;
+    $fh->print("\n");
     $fh->close;
 
     my %credentials;
@@ -171,17 +199,10 @@ sub set_credentials {
     $what =~ /^(?:approve|reject)$/
         or die "set_credentials \$what argument ($what) must be either 'approve' or 'reject'\n";
 
+    my ($site) = credential_description();
+
     open my $git, '|-', "git credential $what";
-
-    $git->print(<<EOF);
-protocol=$Config{protocol}
-host=$Config{host}
-path=$Config{project}
-username=$username
-password=$password
-
-EOF
-
+    $git->print($site, "username=$username\n\n");
     $git->close;
 
     return;
@@ -193,7 +214,7 @@ sub gerrit {
     state $gerrit;
     unless ($gerrit) {
         my ($username, $password) = get_credentials;
-        $gerrit = Gerrit::REST->new(gerrit_url(), $username, $password);
+        $gerrit = Gerrit::REST->new($Config{url}->as_string, $username, $password);
         eval { $gerrit->GET("/projects/" . uri_escape_utf8($Config{project})) };
         if ($@) {
             set_credentials($username, $password, 'reject');
