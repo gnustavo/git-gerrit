@@ -243,7 +243,7 @@ $commands{new} = sub {
 
     $branch !~ m:^change/: or pod2usage "new: Missing BRANCH\n";
 
-    qx/git status --porcelain --untracked-files=no/ eq "\n"
+    qx/git status --porcelain --untracked-files=no/ eq ''
         or die "new: Can't create new change because git-status is dirty\n";
 
     if ($Options{update}) {
@@ -348,7 +348,7 @@ $commands{push} = sub {
         'cc=s@'
     );
 
-    qx/git status --porcelain --untracked-files=no/ eq "\n"
+    qx/git status --porcelain --untracked-files=no/ eq ''
         or die "push: Can't push change because git-status is dirty\n";
 
     my $change_branch = current_branch();
