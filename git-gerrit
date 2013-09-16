@@ -56,125 +56,74 @@ sub grok_config {
             if exists $Config{"default-$opt"};
     }
 
-    state $remotes //= do {
-        my %remotes;
-        open my $pipe, '-|', join(' ', "git remote -v show -n", @_)
-            or die "ERROR: can't fork git-remote: $!\n";
-        while (<$pipe>) {
-            # save only remotes using http/https
-            if (/(?<name>\S+)\s+(?<url>http\S+)/i) {
-                $remotes{$+{name}} = $+{url};
-            }
-        }
-        close $pipe
-            or die "You have to be inside a git repository to use git-gerrit.\n";
-        \%remotes;
-    };
+    unless ($Config{baseurl} && $Config{username} && $Config{project}) {
+        warn <<EOF;
 
-    unless ($Config{remote}) {
-        # We require Term::Prompt to ask the user interactivelly for
-        # the remote. If we can't, we die with a helpful message.
-        eval { require Term::Prompt };
-        if ($@) {
-            die <<EOF;
-
-Please, set up the git-gerrit.remote variable with the name of the git
-remote referring to your Gerrit server. Note that it must use an
-HTTP(S) URL. You may set it like this
-
-    git config git-gerrit.remote <remote>
-
-(If you had the Term::Prompt Perl module installed I could ask you the
-remote's name and set it up for you.)
+*** Please configure git-gerrit:
 
 EOF
-        }
 
-        my @remotes = sort keys %$remotes;
-        my @items   = map {"$_ ($remotes->{$_})"} @remotes;
-        push @items, 'None of the above!';
-        my $item = Term::Prompt::prompt(
-            'm',
-            {
-                prompt => 'prompt',
-                title  => "\nPlease, tell me which remote refers to your Gerrit server:",
-                items  => \@items,
-                accept_empty_selection => 0,
-            },
-        );
-        if ($item < @remotes) {
-            my $remote = $remotes[$item];
-            cmd "git config git-gerrit.remote $remote";
-            $Config{remote} = $remote;
-            $Config{url} = $remotes->{$remote};
-        } else {
-            die <<EOF;
+        warn <<EOF unless $Config{baseurl};
+Run
 
-To use git-gerrit you have to set a git remote referring to your
-Gerrit server via a HTTP(S) URL. Please, set one using the following
-command and try again:
+    git config --global git-gerrit.baseurl "https://your.gerrit.domain"
 
-    git remote add <name> <url>
+to set your Gerrit server base URL. Omit --global if you only want to
+configure it for this particular repository.
 
 EOF
-        }
+
+        warn <<EOF unless $Config{username};
+Run
+
+    git config --global git-gerrit.username "username"
+
+to set the username you use to authenticate with Gerrit. Omit --global
+if you only want to configure it for this particular repository.
+
+EOF
+
+        warn <<EOF unless $Config{project};
+Run
+
+    git config git-gerrit.project "gerrit/project/name"
+
+to set the Gerrit project your repository is associated with.
+
+EOF
+
+        die;
     }
 
-    unless ($Config{url}) {
-        my $url = $remotes->{$Config{remote}}
-            or die <<EOF;
+    $Config{baseurl} =~ s:/+$::; # trim trailing slashes from the baseurl
 
-Your git-gerrit.remote variable is set to '$Config{remote}', but there
-is no remote by that name configured with a HTTP(S) URL. Please, fix
-that configuration variable and try again.
+    $Config{url}     = URI->new($Config{baseurl} . '/' . $Config{project});
 
-EOF
-        $Config{url} = $url;
-    }
-
-    $Config{url} = URI->new($Config{url});
-
-    # The url's path is the project
-    $Config{project} = substr($Config{url}->path, 1); # the path but the leading slash
-    $Config{url}->path('');     # trim off the path
+    $Config{baseurl} = URI->new($Config{baseurl});
 
     return;
 }
 
 sub credential_description {
-    my $url = $Config{url};
+    my $baseurl = $Config{baseurl};
 
-    my $protocol = $url->scheme;
-    my $host     = $url->host;
-    my $path     = $url->path;
+    my $protocol = $baseurl->scheme;
+    my $host     = $baseurl->host;
+    my $path     = $baseurl->path;
 
-    my $site_description = <<EOF;
+    return <<EOF;
 protocol=$protocol
 host=$host
 path=$path
+username=$Config{username}
 EOF
-
-    my $username = $url->userinfo;
-    my $user_description = do {
-        if (defined $username) {
-            $username =~ s/:.*//;   # trim off the password, if any
-            "username=$username\n";
-        } else {
-            undef;
-        }
-    };
-
-    return ($site_description, $user_description);
 }
 
 sub get_credentials {
-    my ($site, $user) = credential_description();
-
     # Create a temporary file to hold the credential description
     require File::Temp;
     my ($fh, $credfile) = File::Temp::tempfile(UNLINK => 1);
-    $fh->print($site);
-    $fh->print($user) if $user;
+    $fh->print(credential_description(), "\n");
     $fh->print("\n");
     $fh->close;
 
@@ -199,10 +148,8 @@ sub set_credentials {
     $what =~ /^(?:approve|reject)$/
         or die "set_credentials \$what argument ($what) must be either 'approve' or 'reject'\n";
 
-    my ($site) = credential_description();
-
     open my $git, '|-', "git credential $what";
-    $git->print($site, "username=$username\n\n");
+    $git->print(credential_description(), "password=$password\n\n");
     $git->close;
 
     return;
@@ -214,7 +161,7 @@ sub gerrit {
     state $gerrit;
     unless ($gerrit) {
         my ($username, $password) = get_credentials;
-        $gerrit = Gerrit::REST->new($Config{url}->as_string, $username, $password);
+        $gerrit = Gerrit::REST->new($Config{baseurl}->as_string, $username, $password);
         eval { $gerrit->GET("/projects/" . uri_escape_utf8($Config{project})) };
         if ($@) {
             set_credentials($username, $password, 'reject');
@@ -277,7 +224,7 @@ sub current_branch {
 sub update_branch {
     my ($branch) = @_;
 
-    cmd "git fetch $Config{remote} $branch:$branch";
+    cmd "git fetch $Config{url} $branch:$branch";
 }
 
 ############################################################
@@ -429,7 +376,7 @@ $commands{push} = sub {
         $refspec .= join(',', @tags);
     }
 
-    cmd "git push $Config{remote} $refspec"
+    cmd "git push $Config{url} $refspec"
         or die "push: Error pushing change.\n";
 
     return if $Options{keep};
