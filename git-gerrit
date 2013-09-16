@@ -296,10 +296,10 @@ $commands{show} = sub {
     my $change = gerrit(GET => "/changes/$id/detail");
 
     print <<EOF;
-Change-Num: $change->{_number}
-Change-Id:  $change->{change_id}
-Subject:    $change->{subject}
-Owner:      $change->{owner}{name}
+Change-Num:  $change->{_number}
+Change-Id:   $change->{change_id}
+Subject:     $change->{subject}
+Owner:       $change->{owner}{name}
 EOF
 
     if ($Options{verbose}) {
