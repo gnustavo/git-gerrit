@@ -252,6 +252,17 @@ sub update_branch {
     cmd "git fetch $Config{url} $branch:$branch";
 }
 
+sub change_argument {
+    return shift @ARGV if @ARGV;
+
+    my $branch = current_branch;
+    if ($branch =~ m:^refs/heads/change/.*/(?<id>\d+):) {
+        return $+{id};
+    }
+
+    return;
+}
+
 ############################################################
 # SUBCOMMANDS
 
@@ -262,13 +273,13 @@ $commands{new} = sub {
 
     my ($topic, $branch) = @ARGV;
 
-    defined $topic or pod2usage("new: Missing TOPIC");
+    defined $topic or pod2usage "new: Missing TOPIC.\n";
 
     install_commit_msg_hook;
 
     $branch = current_branch();
 
-    $branch !~ m:^change/: or pod2usage "new: Missing BRANCH\n";
+    $branch !~ m:^change/: or pod2usage "new: Missing BRANCH.\n";
 
     qx/git status --porcelain --untracked-files=no/ eq ''
         or die "new: Can't create new change because git-status is dirty\n";
@@ -319,7 +330,7 @@ $commands{list} = sub {
 $commands{show} = sub {
     get_options();
 
-    my $id = shift @ARGV
+    my $id = change_argument()
         or pod2usage "show: Missing CHANGE.\n";
 
     my $change = gerrit(GET => "/changes/$id/detail");
@@ -352,8 +363,8 @@ EOF
 $commands{checkout} = sub {
     get_options();
 
-    my ($id) = shift @ARGV
-        or pod2usage("You have to specify a CHANGE");
+    my ($id) = change_argument()
+        or pod2usage "checkout: Missing CHANGE.\n";
 
     my $change = get_change($id);
 
@@ -433,7 +444,7 @@ $commands{reviewer} = sub {
         'delete=s@',
     );
 
-    my $change = shift @ARGV
+    my $change = change_argument()
         or pod2usage "reviewer: Missing CHANGE.\n";
 
     # First try to make all deletions
@@ -473,7 +484,7 @@ $commands{review} = sub {
     $vote =~ /^[+-]?[012]$/
         or pod2usage "review: Invalid vote ($vote). It must be from -2 to +2.\n";
 
-    my $change = shift @ARGV
+    my $change = change_argument()
         or pod2usage "review: Missing CHANGE.\n";
 
     my %review = ( labels => { 'Code-Review' => $vote } );
@@ -485,8 +496,8 @@ $commands{review} = sub {
 $commands{abandon} = sub {
     get_options('message=s');
 
-    my $change = shift @ARGV
-        or pod2usage "review: Missing CHANGE.\n";
+    my $change = change_argument()
+        or pod2usage "abandon: Missing CHANGE.\n";
 
     my @args = ("/changes/$change/abandon");
     push @args, { message => $Options{message} } if $Options{message};
@@ -496,8 +507,8 @@ $commands{abandon} = sub {
 $commands{restore} = sub {
     get_options('message=s');
 
-    my $change = shift @ARGV
-        or pod2usage "review: Missing CHANGE.\n";
+    my $change = change_argument()
+        or pod2usage "restore: Missing CHANGE.\n";
 
     my @args = ("/changes/$change/restore");
     push @args, { message => $Options{message} } if $Options{message};
@@ -507,8 +518,8 @@ $commands{restore} = sub {
 $commands{revert} = sub {
     get_options('message=s');
 
-    my $change = shift @ARGV
-        or pod2usage "review: Missing CHANGE.\n";
+    my $change = change_argument()
+        or pod2usage "revert: Missing CHANGE.\n";
 
     my @args = ("/changes/$change/revert");
     push @args, { message => $Options{message} } if $Options{message};
@@ -518,8 +529,8 @@ $commands{revert} = sub {
 $commands{submit} = sub {
     get_options('wait-for-merge');
 
-    my $change = shift @ARGV
-        or pod2usage "review: Missing CHANGE.\n";
+    my $change = change_argument()
+        or pod2usage "submit: Missing CHANGE.\n";
 
     my @args = ("/changes/$change/submit");
     push @args, { wait_for_merge => 1 } if $Options{'wait-for-merge'};
@@ -529,10 +540,10 @@ $commands{submit} = sub {
 # MAIN
 
 my $command = shift
-    or die pod2usage("Missing command name");
+    or die pod2usage "Missing command name.\n";
 
 exists $commands{$command}
-    or die pod2usage("Invalid command: $command");
+    or die pod2usage "Invalid command: $command.\n";
 
 grok_config;
 
@@ -548,15 +559,15 @@ git-gerrit - Git extension to implement a Gerrit workflow
     git gerrit new        [--update] TOPIC [BRANCH]
     git gerrit query      [--limit LIMIT] [--verbose] QUERY*
     git gerrit list       [--limit LIMIT] [--verbose]
-    git gerrit show       CHANGE
-    git gerrit checkout   CHANGE
+    git gerrit show       [CHANGE]
+    git gerrit checkout   [CHANGE]
     git gerrit push       [--keep] [--rebase] [--update] [--reviewer USER] [--cc USER]
-    git gerrit reviewer   [--add USER|GROUP] [--confirm] [--delete USER|GROUP] CHANGE
-    git gerrit review     [--message TEXT] {-2..+2} CHANGE
-    git gerrit abandon    [--message TEXT] CHANGE
-    git gerrit restore    [--message TEXT] CHANGE
-    git gerrit revert     [--message TEXT] CHANGE
-    git gerrit submit     [--wait-for-merge] CHANGE
+    git gerrit reviewer   [--add USER|GROUP] [--confirm] [--delete USER|GROUP] [CHANGE]
+    git gerrit review     [--message TEXT] {-2..+2} [CHANGE]
+    git gerrit abandon    [--message TEXT] [CHANGE]
+    git gerrit restore    [--message TEXT] [CHANGE]
+    git gerrit revert     [--message TEXT] [CHANGE]
+    git gerrit submit     [--wait-for-merge] [CHANGE]
 
     git gerrit log
     git gerrit cherrypick [--no-commit] [--indicate] CHANGE
