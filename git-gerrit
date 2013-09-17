@@ -7,6 +7,7 @@ use warnings;
 use autodie;
 use Pod::Usage;
 use Getopt::Long qw(:config auto_version auto_help);
+use File::Spec::Functions;
 use URI;
 use URI::Escape;
 use lib '/home/gustavo/git/mine/gerrit-rest/lib';
@@ -101,7 +102,31 @@ EOF
 
     $Config{baseurl} = URI->new($Config{baseurl});
 
+    chomp($Config{gitdir}  = qx/git rev-parse --git-dir/);
+
     return;
+}
+
+sub install_commit_msg_hook {
+    # Do nothing if it already exists
+    my $commit_msg = catfile($Config{gitdir}, 'hooks', 'commit-msg');
+    return if -e $commit_msg;
+
+    # Otherwise, check if we need to mkdir the hooks directory
+    my $hooks_dir = catdir($Config{gitdir}, 'hooks');
+    mkdir $hooks_dir unless -e $hooks_dir;
+
+    # Try to download and install the hook.
+    eval { require LWP::Simple };
+    if ($@) {
+        warn "LWP: cannot install commit_msg hook because couldn't require LWP::Simple\n"
+            if $Options{debug};
+    } else {
+        warn "LWP: install commit_msg hook\n" if $Options{debug};
+        if (LWP::Simple::is_success(LWP::Simple::getstore("$Config{baseurl}/tools/hooks/commit-msg", $commit_msg))) {
+            chmod 0755, $commit_msg;
+        }
+    }
 }
 
 sub credential_description {
@@ -239,6 +264,8 @@ $commands{new} = sub {
 
     defined $topic or pod2usage("new: Missing TOPIC");
 
+    install_commit_msg_hook;
+
     $branch = current_branch();
 
     $branch !~ m:^change/: or pod2usage "new: Missing BRANCH\n";
@@ -347,6 +374,8 @@ $commands{push} = sub {
         'reviewer=s@',
         'cc=s@'
     );
+
+    install_commit_msg_hook;
 
     qx/git status --porcelain --untracked-files=no/ eq ''
         or die "push: Can't push change because git-status is dirty\n";
