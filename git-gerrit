@@ -317,6 +317,8 @@ $commands{list} = sub {
 };
 
 $commands{show} = sub {
+    get_options();
+
     my $id = shift @ARGV
         or pod2usage "show: Missing CHANGE.\n";
 
@@ -348,6 +350,8 @@ EOF
 };
 
 $commands{checkout} = sub {
+    get_options();
+
     my ($id) = shift @ARGV
         or pod2usage("You have to specify a CHANGE");
 
