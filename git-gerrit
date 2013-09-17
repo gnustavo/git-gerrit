@@ -252,9 +252,7 @@ sub update_branch {
     cmd "git fetch $Config{url} $branch:$branch";
 }
 
-sub change_argument {
-    return shift @ARGV if @ARGV;
-
+sub current_change_id {
     my $branch = current_branch;
     if ($branch =~ m:^refs/heads/change/.*/(?<id>\d+):) {
         return $+{id};
@@ -330,7 +328,7 @@ $commands{list} = sub {
 $commands{show} = sub {
     get_options();
 
-    my $id = change_argument()
+    my $id = shift @ARGV || current_change_id()
         or pod2usage "show: Missing CHANGE.\n";
 
     my $change = gerrit(GET => "/changes/$id/detail");
@@ -363,7 +361,7 @@ EOF
 $commands{checkout} = sub {
     get_options();
 
-    my ($id) = change_argument()
+    my $id = shift @ARGV || current_change_id()
         or pod2usage "checkout: Missing CHANGE.\n";
 
     my $change = get_change($id);
@@ -444,13 +442,13 @@ $commands{reviewer} = sub {
         'delete=s@',
     );
 
-    my $change = change_argument()
+    my $id = shift @ARGV || current_change_id()
         or pod2usage "reviewer: Missing CHANGE.\n";
 
     # First try to make all deletions
     if (my $users = $Options{delete}) {
         foreach my $user (split(/,/, join(',', @$users))) {
-            gerrit(DELETE => "/changes/$change/reviewers/$user");
+            gerrit(DELETE => "/changes/$id/reviewers/$user");
         }
     }
 
@@ -458,12 +456,12 @@ $commands{reviewer} = sub {
     if (my $users = $Options{add}) {
         my $confirm = $Options{confirm} ? 'true' : 'false';
         foreach my $user (split(/,/, join(',', @$users))) {
-            gerrit(POST => "/changes/$change/reviewers/$user", { reviewer => $user, confirm => $confirm});
+            gerrit(POST => "/changes/$id/reviewers/$user", { reviewer => $user, confirm => $confirm});
         }
     }
 
     # Finally, list current reviewers
-    my @reviewers = gerrit(GET => "/changes/$change/reviewers");
+    my @reviewers = gerrit(GET => "/changes/$id/reviewers");
     print "There are ", scalar(@reviewers), " reviewers currently:\n";
     foreach my $reviewer (@reviewers) {
         print "$reviewer->{name}\t$reviewer->{email}\t";
@@ -484,22 +482,22 @@ $commands{review} = sub {
     $vote =~ /^[+-]?[012]$/
         or pod2usage "review: Invalid vote ($vote). It must be from -2 to +2.\n";
 
-    my $change = change_argument()
+    my $id = shift @ARGV || current_change_id()
         or pod2usage "review: Missing CHANGE.\n";
 
     my %review = ( labels => { 'Code-Review' => $vote } );
     $review{message} = $Options{message} if $Options{message};
 
-    gerrit(POST => "/changes/$change/revisions/current/review", \%review);
+    gerrit(POST => "/changes/$id/revisions/current/review", \%review);
 };
 
 $commands{abandon} = sub {
     get_options('message=s');
 
-    my $change = change_argument()
+    my $id = shift @ARGV || current_change_id()
         or pod2usage "abandon: Missing CHANGE.\n";
 
-    my @args = ("/changes/$change/abandon");
+    my @args = ("/changes/$id/abandon");
     push @args, { message => $Options{message} } if $Options{message};
     gerrit(POST => @args);
 };
@@ -507,10 +505,10 @@ $commands{abandon} = sub {
 $commands{restore} = sub {
     get_options('message=s');
 
-    my $change = change_argument()
+    my $id = shift @ARGV || current_change_id()
         or pod2usage "restore: Missing CHANGE.\n";
 
-    my @args = ("/changes/$change/restore");
+    my @args = ("/changes/$id/restore");
     push @args, { message => $Options{message} } if $Options{message};
     gerrit(POST => @args);
 };
@@ -518,10 +516,10 @@ $commands{restore} = sub {
 $commands{revert} = sub {
     get_options('message=s');
 
-    my $change = change_argument()
+    my $id = shift @ARGV || current_change_id()
         or pod2usage "revert: Missing CHANGE.\n";
 
-    my @args = ("/changes/$change/revert");
+    my @args = ("/changes/$id/revert");
     push @args, { message => $Options{message} } if $Options{message};
     gerrit(POST => @args);
 };
@@ -529,10 +527,10 @@ $commands{revert} = sub {
 $commands{submit} = sub {
     get_options('wait-for-merge');
 
-    my $change = change_argument()
+    my $id = shift @ARGV || current_change_id()
         or pod2usage "submit: Missing CHANGE.\n";
 
-    my @args = ("/changes/$change/submit");
+    my @args = ("/changes/$id/submit");
     push @args, { wait_for_merge => 1 } if $Options{'wait-for-merge'};
     gerrit(POST => @args);
 };
