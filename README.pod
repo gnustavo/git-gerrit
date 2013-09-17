@@ -41,12 +41,6 @@ Allow for the checkout of a specific patchset of a change.
 
 =item * implement the '--dry-run' option
 
-=item * implement 'setup'
-
-Make it interactive by detection.
-
-Download Gerrit's commit-msg hook automatically
-
 =item * check and warn about multi-change pushes
 
 =item * implement draft submittion
@@ -63,8 +57,6 @@ L<this|https://npmjs.org/package/git-jira>.
 
 Another one would be to invite reviewers based on the history of the
 files/lines touched by the change.
-
-=item * implement a 'list' command to list the refs/heads/change/* branches
 
 =item * implement a 'purge' command to get rid of merged/abandoned change branches
 
