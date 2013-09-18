@@ -209,7 +209,14 @@ sub gerrit {
         }
     }
 
-    warn join(' ', 'Gerrit:', $method, @_), "\n" if $Options{debug};
+    if ($Options{debug}) {
+        my ($endpoint, @args) = @_;
+        warn "GERRIT: $method $endpoint\n";
+        if (@args) {
+            require Data::Dumper;
+            warn Data::Dumper::Dumper(@args);
+        }
+    }
 
     return $gerrit->$method(@_);
 }
