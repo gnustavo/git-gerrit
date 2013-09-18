@@ -457,7 +457,7 @@ $commands{backout} = sub {
             }
         }
     } else {
-        warn "You aren't in a change branch. I cannot back you out.\n";
+        die "backout: You aren't in a change branch. I cannot back you out.\n";
     }
 };
 
@@ -471,27 +471,24 @@ $commands{push} = sub {
         'cc=s@'
     );
 
-    install_commit_msg_hook;
-
     qx/git status --porcelain --untracked-files=no/ eq ''
         or die "push: Can't push change because git-status is dirty\n";
 
-    my $change_branch = current_branch();
+    my $branch = current_branch;
 
-    my ($prefix, $branch, $topic, $id) = split m:/:, $change_branch;
-
-    $prefix eq 'change' or die "push: You must be in a change branch to push it\n";
+    my ($upstream, $id) = change_branch_info($branch)
+        or die "push: You aren't in a change branch. I cannot push it.\n";
 
     if ($Options{update}) {
-        update_branch($branch)
+        update_branch($upstream)
             or die "push: Non-fast-forward pull. Please, merge or rebase your branch first.\n";
     }
 
     if ($Options{rebase}) {
-        cmd "git rebase $branch";
+        cmd "git rebase $upstream";
     }
 
-    my $refspec = "HEAD:refs/for/$branch";
+    my $refspec = "HEAD:refs/for/$upstream";
 
     my @tags;
     if (my $topic = $Options{topic}) {
@@ -511,11 +508,11 @@ $commands{push} = sub {
     cmd "git push $Config{url} $refspec"
         or die "push: Error pushing change.\n";
 
-    return if $Options{keep};
+    unless ($Options{keep}) {
+        cmd("git checkout $upstream") and cmd("git branch -D $branch");
+    }
 
-    cmd "git checkout $branch";
-
-    cmd "git branch -D $change_branch";
+    install_commit_msg_hook;
 };
 
 $commands{reviewer} = sub {
