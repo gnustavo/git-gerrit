@@ -107,6 +107,12 @@ EOF
     return;
 }
 
+# The install_commit_msg_hook routine is invoked by a few of
+# git-gerrit subcommands. It checks if the current repository already
+# has a commit-msg hook installed. If not, it tries to download and
+# install Gerrit's default commit-msg hook, which inserts Change-Ids
+# in commits messages.
+
 sub install_commit_msg_hook {
     # Do nothing if it already exists
     my $commit_msg = catfile($Config{gitdir}, 'hooks', 'commit-msg');
@@ -128,6 +134,10 @@ sub install_commit_msg_hook {
         }
     }
 }
+
+# The credential_* routines below use the git-credential command to
+# get and set credentials for git commands and also for Gerrit REST
+# interactions.
 
 sub credential_description {
     my $baseurl = $Config{baseurl};
@@ -180,6 +190,9 @@ sub set_credentials {
     return;
 }
 
+# The gerrit routine keeps a cached Gerrit::REST object to which it
+# relays REST calls.
+
 sub gerrit {
     my $method = shift;
 
@@ -200,6 +213,10 @@ sub gerrit {
 
     return $gerrit->$method(@_);
 }
+
+# The query_changes routine receives a list of strings to query the
+# Gerrit server. It returns an array-ref containing a list of
+# array-refs, each containing a list of change descriptions.
 
 sub query_changes {
     my @queries = @_;
@@ -223,6 +240,11 @@ sub query_changes {
     return $changes;
 }
 
+# The get_change routine returns the description of a change
+# identified by $id. An optional boolean second argument ($allrevs)
+# tells if the change description should contain a description of all
+# patchsets or just the current one.
+
 sub get_change {
     my ($id, $allrevs) = @_;
 
@@ -230,27 +252,31 @@ sub get_change {
     return (gerrit(GET => "/changes/?q=change:$id&o=$revs"))[0][0];
 }
 
-sub change_refspecs {
-    my ($change) = @_;
-
-    my %refspecs;
-    foreach my $patch (sort {$a->{_number} <=> $b->{_number}} values %{$change->{revisions}}) {
-        my $http = $patch->{fetch}{http};
-        push @{$refspecs{$http->{url}}}, "$http->{ref}:review/$change->{_number}/$patch->{_number}";
-    }
-    return \%refspecs;
-}
+# The current_branch routine returns the name of the current branch or
+# 'HEAD' in a dettached head state.
 
 sub current_branch {
     chomp(my $branch = qx/git rev-parse --abbrev-ref HEAD/);
     return $branch;
 }
 
+# The update_branch routine receives a local $branch name and updates
+# it with the homonym branch in the Gerrit remote.
+
 sub update_branch {
     my ($branch) = @_;
 
     cmd "git fetch $Config{url} $branch:$branch";
 }
+
+# The following change_branch_* routines are used to create, list, and
+# grok the local change-branches, i.e., the ones we create locally to
+# map Gerrit's changes. Their names have a fixed format like this:
+# "change/<upstream>/<id>. <Upstream> is the name of the local branch
+# from which this change was derived. <Id> can be either a number,
+# meaning the numeric id of a change already in Gerrit, or a
+# topic-name, which was created by the "git-gerrit new <topic>"
+# command.
 
 sub change_branch_new {
     my ($upstream, $topic) = @_;
@@ -272,9 +298,17 @@ sub change_branch_info {
     return;
 }
 
+# The current_change routine returns a list of two items: the upstream
+# and the id of the change branch we're currently in. If we're not in
+# a change branch, it returns the empty list.
+
 sub current_change {
     return change_branch_info(current_branch);
 }
+
+# The current_change_id routine returns the id of the change branch
+# we're currently in. If we're not in a change branch, it returns
+# undef.
 
 sub current_change_id {
     my ($branch, $id) = current_change;
@@ -283,7 +317,10 @@ sub current_change_id {
 }
 
 ############################################################
-# SUBCOMMANDS
+# MAIN
+
+# Each git-gerrit subcommand is implemented by an anonymous routine
+# associated with one or more names in the %commands hash.
 
 my %commands;
 
