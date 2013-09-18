@@ -253,7 +253,7 @@ sub update_branch {
 }
 
 sub change_branch_new {
-    my ($uptream, $topic) = @_;
+    my ($upstream, $topic) = @_;
     die "The TOPIC cannot contain the slash character (/).\n"
         if $topic =~ m:/:;
     return "change/$upstream/$topic";
