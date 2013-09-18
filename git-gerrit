@@ -564,16 +564,25 @@ $commands{reviewer} = sub {
 $commands{review} = sub {
     get_options('message=s');
 
-    my $vote = shift @ARGV
-        or pod2usage "review: Missing VOTE.\n";
-    $vote =~ /^[+-]?[012]$/
-        or pod2usage "review: Invalid vote ($vote). It must be from -2 to +2.\n";
+    my %review;
+
+    $review{message} = $Options{message} if $Options{message};
+
+    # Set all votes
+    while (@ARGV && $ARGV[0] =~ /(?<label>.*)=(?<vote>.*)/) {
+        shift @ARGV;
+        $review{labels}{$+{label} || 'Code-Review'} = $+{vote};
+        $+{vote} =~ /^[+-]?\d$/
+            or pod2usage "review: Invalid vote ($+{vote}). It must be a single digit optionally prefixed by a [-+] sign.\n";
+    }
+
+    die "review: Invalid vote $ARGV[0].\n" if @ARGV > 1;
+
+    die "review: You must specify a message or a vote to review.\n"
+        unless keys %review;
 
     my $id = shift @ARGV || current_change_id()
         or pod2usage "review: Missing CHANGE.\n";
-
-    my %review = ( labels => { 'Code-Review' => $vote } );
-    $review{message} = $Options{message} if $Options{message};
 
     gerrit(POST => "/changes/$id/revisions/current/review", \%review);
 };
@@ -650,7 +659,7 @@ git-gerrit - Git extension to implement a Gerrit workflow
     git gerrit backout    [--keep]
     git gerrit push       [--keep] [--rebase] [--update] [--reviewer USER] [--cc USER]
     git gerrit reviewer   [--add USER|GROUP] [--confirm] [--delete USER|GROUP] [CHANGE]
-    git gerrit review     [--message TEXT] {-2..+2} [CHANGE]
+    git gerrit review     [--message TEXT] [LABEL=VOTE]* [CHANGE]
     git gerrit abandon    [--message TEXT] [CHANGE]
     git gerrit restore    [--message TEXT] [CHANGE]
     git gerrit revert     [--message TEXT] [CHANGE]
