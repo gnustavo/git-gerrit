@@ -9,7 +9,6 @@ use Pod::Usage;
 use Getopt::Long qw(:config auto_version auto_help);
 use URI;
 use URI::Escape;
-use lib '/home/gustavo/git/mine/gerrit-rest/lib';
 use Gerrit::REST;
 
 # The %Options hash is used to hold the command line options passed to
