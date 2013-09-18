@@ -445,6 +445,22 @@ $commands{checkout} = sub {
     cmd "git checkout $branch";
 };
 
+$commands{backout} = sub {
+    get_options('keep');
+
+    my $branch = current_branch;
+
+    if (my ($upstream, $id) = change_branch_info($branch)) {
+        if (cmd "git checkout $upstream") {
+            if ($id =~ /^\d+$/ && ! $Options{keep}) {
+                cmd "git branch -D $branch";
+            }
+        }
+    } else {
+        warn "You aren't in a change branch. I cannot back you out.\n";
+    }
+};
+
 $commands{push} = sub {
     get_options(
         'keep',
@@ -627,6 +643,7 @@ git-gerrit - Git extension to implement a Gerrit workflow
     git gerrit show       [CHANGE]
     git gerrit config
     git gerrit checkout   [CHANGE]
+    git gerrit backout    [--keep]
     git gerrit push       [--keep] [--rebase] [--update] [--reviewer USER] [--cc USER]
     git gerrit reviewer   [--add USER|GROUP] [--confirm] [--delete USER|GROUP] [CHANGE]
     git gerrit review     [--message TEXT] {-2..+2} [CHANGE]
