@@ -20,7 +20,7 @@ use Gerrit::REST;
 
 my %Options = ( verbose => 0, debug => 0 );
 sub get_options {
-    my ($optref, @opt_specs) = @_;
+    my (@opt_specs) = @_;
     return GetOptions(\%Options, 'verbose+', 'debug', @opt_specs)
         or pod2usage(2);
 }
