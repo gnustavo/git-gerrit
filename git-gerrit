@@ -382,6 +382,12 @@ EOF
     }
 };
 
+$commands{config} = sub {
+    foreach my $var (sort keys %Config) {
+        print "git-gerrit.$var:\t$Config{$var}\n";
+    }
+};
+
 $commands{checkout} = sub {
     get_options();
 
@@ -582,6 +588,7 @@ git-gerrit - Git extension to implement a Gerrit workflow
     git gerrit query      [--limit LIMIT] [--verbose] QUERY*
     git gerrit list       [--limit LIMIT] [--verbose]
     git gerrit show       [CHANGE]
+    git gerrit config
     git gerrit checkout   [CHANGE]
     git gerrit push       [--keep] [--rebase] [--update] [--reviewer USER] [--cc USER]
     git gerrit reviewer   [--add USER|GROUP] [--confirm] [--delete USER|GROUP] [CHANGE]
