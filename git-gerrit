@@ -494,6 +494,7 @@ $commands{backout} = sub {
 $commands{push} = sub {
     get_options(
         'keep',
+        'force',
         'rebase',
         'update',
         'topic=s',
@@ -508,6 +509,19 @@ $commands{push} = sub {
 
     my ($upstream, $id) = change_branch_info($branch)
         or die "push: You aren't in a change branch. I cannot push it.\n";
+
+    my @commits = qx/git log --decorate=no --oneline HEAD ^$upstream/;
+    if (@commits == 0) {
+        die "push: no changes between $upstream and $branch. Pushing would be pointless.\n";
+    } elsif (@commits > 1 && ! $Options{force}) {
+        die <<EOF;
+push: you have more than one commit that you are about to push.
+      The outstanding commits are:
+
+ @commits
+      If this is really what you want to do, please try again with --force.
+EOF
+    }
 
     if ($Options{update}) {
         update_branch($upstream)
@@ -711,17 +725,13 @@ git-gerrit - Git extension to implement a Gerrit workflow
     git gerrit config
     git gerrit checkout   [CHANGE]
     git gerrit backout    [--keep]
-    git gerrit push       [--keep] [--rebase] [--update] [--reviewer USER] [--cc USER]
+    git gerrit push       [--keep] [--force] [--rebase] [--update] [--reviewer USER] [--cc USER]
     git gerrit reviewer   [--add USER|GROUP] [--confirm] [--delete USER|GROUP] [CHANGE]
     git gerrit review     [--message TEXT] [--editor] [LABEL=VOTE]* [CHANGE]
     git gerrit abandon    [--message TEXT] [--editor] [CHANGE]
     git gerrit restore    [--message TEXT] [--editor] [CHANGE]
     git gerrit revert     [--message TEXT] [--editor] [CHANGE]
     git gerrit submit     [--wait-for-merge] [CHANGE]
-
-    git gerrit log
-    git gerrit cherrypick [--no-commit] [--indicate] CHANGE
-    git gerrit diff       CHANGE-RANGE
 
 =head1 OPTIONS
 
