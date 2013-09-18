@@ -290,18 +290,19 @@ my %commands;
 $commands{new} = sub {
     get_options('update');
 
-    my ($topic, $branch) = @ARGV;
+    my $topic = shift @ARGV
+        or pod2usage "new: Missing TOPIC.\n";
 
-    defined $topic or pod2usage "new: Missing TOPIC.\n";
+    my $branch = shift @ARGV || current_branch;
 
-    install_commit_msg_hook;
+    if (my ($upstream, $id) = change_branch_info($branch)) {
+        die "new: You can't base a new change on a change branch ($branch).\n";
+    }
 
-    $branch = current_branch();
+    my $status = qx/git status --porcelain --untracked-files=no/;
 
-    $branch !~ m:^change/: or pod2usage "new: Missing BRANCH.\n";
-
-    qx/git status --porcelain --untracked-files=no/ eq ''
-        or die "new: Can't create new change because git-status is dirty\n";
+    warn "Warning: git-status tells me that your working area is dirty:\n$status\n"
+        if $status ne '';
 
     if ($Options{update}) {
         update_branch($branch)
@@ -309,6 +310,8 @@ $commands{new} = sub {
     }
 
     cmd "git checkout -b change/$branch/$topic";
+
+    install_commit_msg_hook;
 };
 
 $commands{query} = sub {
