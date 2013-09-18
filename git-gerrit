@@ -190,6 +190,29 @@ sub set_credentials {
     return;
 }
 
+# The get_message_from_editor routine invokes the git editor to let
+# the user compose a message and returns it.
+
+sub get_message_from_editor {
+    chomp(my $editor = qx/git var GIT_EDITOR/);
+
+    die "Please, see 'git help var' to see how to set up an editor for git messages.\n"
+        unless $editor;
+
+    require File::Temp;
+    my $tmp = File::Temp->new();
+    cmd "$editor $tmp"
+        or die "Aborting because I couldn't invoke '$editor $tmp'.\n";
+
+    require File::Slurp;
+    my $message = File::Slurp::read_file($tmp->filename);
+
+    die "Aborting because the message is empty.\n"
+        unless length $message;
+
+    return $message;
+}
+
 # The gerrit routine keeps a cached Gerrit::REST object to which it
 # relays REST calls.
 
@@ -562,11 +585,18 @@ $commands{reviewer} = sub {
 };
 
 $commands{review} = sub {
-    get_options('message=s');
+    get_options(
+        'editor',
+        'message=s',
+    );
 
     my %review;
 
-    $review{message} = $Options{message} if $Options{message};
+    if ($Options{message}) {
+        $review{message} = $Options{message};
+    } elsif ($Options{editor}) {
+        $review{message} = get_message_from_editor;
+    }
 
     # Set all votes
     while (@ARGV && $ARGV[0] =~ /(?<label>.*)=(?<vote>.*)/) {
@@ -588,35 +618,59 @@ $commands{review} = sub {
 };
 
 $commands{abandon} = sub {
-    get_options('message=s');
+    get_options(
+        'editor',
+        'message=s',
+    );
 
     my $id = shift @ARGV || current_change_id()
         or pod2usage "abandon: Missing CHANGE.\n";
 
     my @args = ("/changes/$id/abandon");
-    push @args, { message => $Options{message} } if $Options{message};
+    if ($Options{message}) {
+        push @args, { message => $Options{message} };
+    } elsif ($Options{editor}) {
+        push @args, { message => get_message_from_editor };
+    }
+
     gerrit(POST => @args);
 };
 
 $commands{restore} = sub {
-    get_options('message=s');
+    get_options(
+        'editor',
+        'message=s',
+    );
 
     my $id = shift @ARGV || current_change_id()
         or pod2usage "restore: Missing CHANGE.\n";
 
     my @args = ("/changes/$id/restore");
-    push @args, { message => $Options{message} } if $Options{message};
+    if ($Options{message}) {
+        push @args, { message => $Options{message} };
+    } elsif ($Options{editor}) {
+        push @args, { message => get_message_from_editor };
+    }
+
     gerrit(POST => @args);
 };
 
 $commands{revert} = sub {
-    get_options('message=s');
+    get_options(
+        'editor',
+        'message=s',
+    );
 
     my $id = shift @ARGV || current_change_id()
         or pod2usage "revert: Missing CHANGE.\n";
 
     my @args = ("/changes/$id/revert");
-    push @args, { message => $Options{message} } if $Options{message};
+    if ($Options{message}) {
+        push @args, { message => $Options{message} };
+    } elsif ($Options{editor}) {
+        push @args, { message => get_message_from_editor };
+    }
+
     gerrit(POST => @args);
 };
 
@@ -659,10 +713,10 @@ git-gerrit - Git extension to implement a Gerrit workflow
     git gerrit backout    [--keep]
     git gerrit push       [--keep] [--rebase] [--update] [--reviewer USER] [--cc USER]
     git gerrit reviewer   [--add USER|GROUP] [--confirm] [--delete USER|GROUP] [CHANGE]
-    git gerrit review     [--message TEXT] [LABEL=VOTE]* [CHANGE]
-    git gerrit abandon    [--message TEXT] [CHANGE]
-    git gerrit restore    [--message TEXT] [CHANGE]
-    git gerrit revert     [--message TEXT] [CHANGE]
+    git gerrit review     [--message TEXT] [--editor] [LABEL=VOTE]* [CHANGE]
+    git gerrit abandon    [--message TEXT] [--editor] [CHANGE]
+    git gerrit restore    [--message TEXT] [--editor] [CHANGE]
+    git gerrit revert     [--message TEXT] [--editor] [CHANGE]
     git gerrit submit     [--wait-for-merge] [CHANGE]
 
     git gerrit log
