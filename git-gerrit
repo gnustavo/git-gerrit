@@ -749,25 +749,32 @@ git-gerrit - Git extension to implement a Gerrit workflow
 =over
 
 =item * L<git-review|https://github.com/openstack-infra/git-review>:
-Another script implementing a Gerrit workflow in Git.
+The original inspiration for git-gerrit.
+
+=item * L<git-change|https://github.com/Nextdoor/git-change>: Yet
+another script implementing a Gerrit workflow.
+
 
 =back
 
 =head1 PREREQUISITES
 
 =over
-=item * C<Pod::Usage>
-=item * C<Getopt::Long>
+=item * C<Data::Dumper>
+=item * C<File::Spec>
+=item * C<File::Slurp>
 =item * C<File::Temp>
 =item * C<Gerrit::REST>
-=item * C<URI>
+=item * C<Getopt::Long>
+=item * C<Pod::Usage>
 =item * C<URI::Escape>
+=item * C<URI>
 =back
 
 =head1 COREQUISITES
 
 =over
-=item * C<Term::Prompt>
+=item * C<LWP::Simple>
 =back
 
 =pod OSNAMES
