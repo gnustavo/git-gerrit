@@ -542,6 +542,8 @@ $commands{backout} = sub {
         if (cmd "git checkout $upstream") {
             if ($id =~ /^\d+$/ && ! $Options{keep}) {
                 cmd "git branch -D $branch";
+            } else {
+                warn "Keeping $branch\n";
             }
         }
     } else {
