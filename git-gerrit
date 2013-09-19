@@ -213,14 +213,23 @@ sub get_message_from_editor {
 
     require File::Temp;
     my $tmp = File::Temp->new();
+
+    require File::Slurp;
+    File::Slurp::write_file($tmp->filename, <<'EOF');
+
+# Please enter the review message for this change. Lines starting
+# with '#' will be ignored, and an empty message aborts the review.
+EOF
+
     cmd "$editor $tmp"
         or die "Aborting because I couldn't invoke '$editor $tmp'.\n";
 
-    require File::Slurp;
     my $message = File::Slurp::read_file($tmp->filename);
 
+    $message =~ s/(?<=\n)#.*?\n//gs; # remove all lines starting with '#'
+
     die "Aborting because the message is empty.\n"
-        unless length $message;
+        if $message !~ /\S/s;
 
     return $message;
 }
