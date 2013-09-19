@@ -397,12 +397,23 @@ $commands{new} = sub {
 $commands{query} = sub {
     get_options('limit=i');
 
-    my $changes = query_changes(@ARGV);
+    my (@names, @queries);
+    foreach my $arg (@ARGV) {
+        if ($arg =~ /(?<name>.*?)=(?<query>.*)/) {
+            push @names,   $+{name};
+            push @queries, $+{query};
+        } else {
+            push @names,   "QUERY: $arg";
+            push @queries, $arg;
+        }
+    }
+
+    my $changes = query_changes(@queries);
 
     # FIXME: consider using Text::Table for formatting
     my $format = "%-5s %-9s %-19s %-20s %-12s %-24s %s\n";
     for (my $i=0; $i < @$changes; ++$i) {
-        print "\n[QUERY: $ARGV[$i]]\n";
+        print "\n[$names[$i]]\n";
         next unless @{$changes->[$i]};
         printf $format, 'ID', 'STATUS', 'UPDATED', 'PROJECT', 'BRANCH', 'OWNER', 'SUBJECT';
         foreach my $change (sort {$b->{updated} cmp $a->{updated}} @{$changes->[$i]}) {
@@ -425,7 +436,10 @@ $commands{query} = sub {
 };
 
 $commands{list} = sub {
-    push @ARGV, qw/is:open+owner:self is:open+reviewer:self+-owner:self/;
+    push @ARGV,
+        'Outgoing reviews=is:open+owner:self',
+            'Incoming reviews=is:open+reviewer:self+-owner:self',
+                'Recently closed=is:closed+owner:self+-age:1mon';
     $commands{query}();
 };
 
@@ -737,8 +751,8 @@ git-gerrit - Git extension to implement a Gerrit workflow
 =head1 SYNOPSIS
 
     git gerrit new        [--update] TOPIC [BRANCH]
-    git gerrit query      [--limit LIMIT] [--verbose] QUERY*
-    git gerrit list       [--limit LIMIT] [--verbose]
+    git gerrit query      [--limit LIMIT] [--verbose] [NAME=]QUERY ...
+    git gerrit my         [--limit LIMIT] [--verbose] (changes|drafts|watched|starred)
     git gerrit show       [CHANGE]
     git gerrit config
     git gerrit checkout   [CHANGE]
