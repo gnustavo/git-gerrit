@@ -780,15 +780,15 @@ git-gerrit - Git extension to implement a Gerrit workflow
 =head1 SYNOPSIS
 
     git gerrit new        [--update] TOPIC [BRANCH]
-    git gerrit query      [--limit LIMIT] [--verbose] [NAME=]QUERY ...
-    git gerrit my         [--limit LIMIT] [--verbose] (changes|drafts|watched|starred)
+    git gerrit query      [--limit LIMIT] [--verbose] [[NAME=]QUERY]*
+    git gerrit my         [--limit LIMIT] [--verbose] [changes|drafts|watched|starred]
     git gerrit show       [CHANGE]
     git gerrit config
     git gerrit checkout   [CHANGE]
     git gerrit backout    [--keep]
     git gerrit push       [--keep] [--force] [--rebase] [--update] [--reviewer USER] [--cc USER]
     git gerrit reviewer   [--add USER|GROUP] [--confirm] [--delete USER|GROUP] [CHANGE]
-    git gerrit review     [--message TEXT] [--editor] [LABEL=VOTE]* [CHANGE]
+    git gerrit review     [--message TEXT] [--editor] [[LABEL]=VOTE]* [CHANGE]
     git gerrit abandon    [--message TEXT] [--editor] [CHANGE]
     git gerrit restore    [--message TEXT] [--editor] [CHANGE]
     git gerrit revert     [--message TEXT] [--editor] [CHANGE]
