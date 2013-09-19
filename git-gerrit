@@ -537,6 +537,8 @@ EOF
     my @tags;
     if (my $topic = $Options{topic}) {
         push @tags, "topic=$topic";
+    } elsif ($id =~ /\D/) {
+        push @tags, "topic=$id";
     }
     if (my $reviewers = $Options{reviewer}) {
         push @tags, map("r=$_", split(/,/, join(',', @$reviewers)));
