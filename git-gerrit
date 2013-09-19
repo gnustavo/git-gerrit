@@ -42,7 +42,7 @@ sub grok_config {
         open my $pipe, '-|', 'git config --get-regexp "^git-gerrit\."';
         while (<$pipe>) {
             if (/^git-gerrit\.(\S+)\s+(.*)/) {
-                $Config{$1} = $2;
+                push @{$Config{$1}}, $2;
             } else {
                 warn "Strange git-config output: $_";
             }
@@ -51,7 +51,7 @@ sub grok_config {
 
     # Override option defaults
     for my $opt (qw/verbose/) {
-        $Options{$opt} = $Config{"default-$opt"}
+        $Options{$opt} = $Config{"default-$opt"}[-1]
             if exists $Config{"default-$opt"};
     }
 
@@ -94,15 +94,25 @@ EOF
         die;
     }
 
-    $Config{baseurl} =~ s:/+$::; # trim trailing slashes from the baseurl
+    $Config{baseurl}[-1] =~ s:/+$::; # trim trailing slashes from the baseurl
 
-    $Config{url}     = URI->new($Config{baseurl} . '/' . $Config{project});
+    push @{$Config{url}}, URI->new($Config{baseurl}[-1] . '/' . $Config{project}[-1]);
 
-    $Config{baseurl} = URI->new($Config{baseurl});
+    $Config{baseurl}[-1] = URI->new($Config{baseurl}[-1]);
 
-    chomp($Config{gitdir}  = qx/git rev-parse --git-dir/);
+    chomp(my $gitdir = qx/git rev-parse --git-dir/);
+    push @{$Config{gitdir}}, $gitdir;
 
     return;
+}
+
+sub config {
+    my ($var) = @_;
+    if (wantarray) {
+        return exists $Config{$var} ? @{$Config{$var}}  : ();
+    } else {
+        return exists $Config{$var} ? $Config{$var}[-1] : undef;
+    }
 }
 
 # The install_commit_msg_hook routine is invoked by a few of
@@ -115,11 +125,11 @@ sub install_commit_msg_hook {
     require File::Spec;
 
     # Do nothing if it already exists
-    my $commit_msg = File::Spec->catfile($Config{gitdir}, 'hooks', 'commit-msg');
+    my $commit_msg = File::Spec->catfile(scalar(config('gitdir')), 'hooks', 'commit-msg');
     return if -e $commit_msg;
 
     # Otherwise, check if we need to mkdir the hooks directory
-    my $hooks_dir = File::Spec->catdir($Config{gitdir}, 'hooks');
+    my $hooks_dir = File::Spec->catdir(scalar(config('gitdir')), 'hooks');
     mkdir $hooks_dir unless -e $hooks_dir;
 
     # Try to download and install the hook.
@@ -129,7 +139,7 @@ sub install_commit_msg_hook {
             if $Options{debug};
     } else {
         warn "LWP: install commit_msg hook\n" if $Options{debug};
-        if (LWP::Simple::is_success(LWP::Simple::getstore("$Config{baseurl}/tools/hooks/commit-msg", $commit_msg))) {
+        if (LWP::Simple::is_success(LWP::Simple::getstore(config('baseurl') . "/tools/hooks/commit-msg", $commit_msg))) {
             chmod 0755, $commit_msg;
         }
     }
@@ -140,17 +150,19 @@ sub install_commit_msg_hook {
 # interactions.
 
 sub credential_description {
-    my $baseurl = $Config{baseurl};
+    my $baseurl = config('baseurl');
 
     my $protocol = $baseurl->scheme;
     my $host     = $baseurl->host;
     my $path     = $baseurl->path;
 
+    my $username = config('username');
+
     return <<EOF;
 protocol=$protocol
 host=$host
 path=$path
-username=$Config{username}
+username=$username
 EOF
 }
 
@@ -222,8 +234,8 @@ sub gerrit {
     state $gerrit;
     unless ($gerrit) {
         my ($username, $password) = get_credentials;
-        $gerrit = Gerrit::REST->new($Config{baseurl}->as_string, $username, $password);
-        eval { $gerrit->GET("/projects/" . uri_escape_utf8($Config{project})) };
+        $gerrit = Gerrit::REST->new(config('baseurl')->as_string, $username, $password);
+        eval { $gerrit->GET("/projects/" . uri_escape_utf8(config('project'))) };
         if ($@) {
             set_credentials($username, $password, 'reject');
             die $@;
@@ -255,7 +267,7 @@ sub query_changes {
 
     # If we're inside a git repository, restrict the query to the
     # current project's reviews.
-    if (my $project = $Config{project}) {
+    if (my $project = config('project')) {
         $project = uri_escape_utf8($project);
         @queries = map "q=project:$project+$_", @queries;
     }
@@ -296,7 +308,8 @@ sub current_branch {
 sub update_branch {
     my ($branch) = @_;
 
-    cmd "git fetch $Config{url} $branch:$branch";
+    my $url = config('url');
+    cmd "git fetch $url $branch:$branch";
 }
 
 # The following change_branch_* routines are used to create, list, and
@@ -451,7 +464,9 @@ EOF
 
 $commands{config} = sub {
     foreach my $var (sort keys %Config) {
-        print "git-gerrit.$var:\t$Config{$var}\n";
+        foreach my $val (@{$Config{$var}}) {
+            print "git-gerrit.$var:\t$val\n";
+        }
     }
 };
 
@@ -551,7 +566,8 @@ EOF
         $refspec .= join(',', @tags);
     }
 
-    cmd "git push $Config{url} $refspec"
+    my $url = config('url');
+    cmd "git push $url $refspec"
         or die "push: Error pushing change.\n";
 
     unless ($Options{keep}) {
