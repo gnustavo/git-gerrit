@@ -403,7 +403,7 @@ $commands{query} = sub {
             push @names,   $+{name};
             push @queries, $+{query};
         } else {
-            push @names,   "QUERY: $arg";
+            push @names,   "QUERY";
             push @queries, $arg;
         }
     }
@@ -413,7 +413,7 @@ $commands{query} = sub {
     # FIXME: consider using Text::Table for formatting
     my $format = "%-5s %-9s %-19s %-20s %-12s %-24s %s\n";
     for (my $i=0; $i < @$changes; ++$i) {
-        print "\n[$names[$i]]\n";
+        print "\n[$names[$i]: $queries[$i]]\n";
         next unless @{$changes->[$i]};
         printf $format, 'ID', 'STATUS', 'UPDATED', 'PROJECT', 'BRANCH', 'OWNER', 'SUBJECT';
         foreach my $change (sort {$b->{updated} cmp $a->{updated}} @{$changes->[$i]}) {
