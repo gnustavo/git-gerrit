@@ -55,7 +55,7 @@ sub grok_config {
             if exists $Config{"default-$opt"};
     }
 
-    unless ($Config{baseurl} && $Config{username} && $Config{project}) {
+    unless ($Config{baseurl} && $Config{project} && $Config{remote}) {
         warn <<EOF;
 
 *** Please configure git-gerrit:
@@ -72,22 +72,21 @@ configure it for this particular repository.
 
 EOF
 
-        warn <<EOF unless $Config{username};
-Run
-
-    git config --global git-gerrit.username "username"
-
-to set the username you use to authenticate with Gerrit. Omit --global
-if you only want to configure it for this particular repository.
-
-EOF
-
         warn <<EOF unless $Config{project};
 Run
 
     git config git-gerrit.project "gerrit/project/name"
 
 to set the Gerrit project your repository is associated with.
+
+EOF
+
+        warn <<EOF unless $Config{remote};
+Run
+
+    git config git-gerrit.remote "remote"
+
+to set the git remote pointing to the Gerrit project.
 
 EOF
 
@@ -156,14 +155,19 @@ sub credential_description {
     my $host     = $baseurl->host;
     my $path     = $baseurl->path;
 
-    my $username = config('username');
-
-    return <<EOF;
+    my $description = <<EOF;
 protocol=$protocol
 host=$host
 path=$path
+EOF
+
+    if (my $username = config('username')) {
+        $description .= <<EOF
 username=$username
 EOF
+    }
+
+    return $description;
 }
 
 sub get_credentials {
@@ -317,8 +321,8 @@ sub current_branch {
 sub update_branch {
     my ($branch) = @_;
 
-    my $url = config('url');
-    cmd "git fetch $url $branch:$branch";
+    my $remote = config('remote');
+    cmd "git fetch $remote $branch:$branch";
 }
 
 # The following change_branch_* routines are used to create, list, and
@@ -612,8 +616,8 @@ EOF
         $refspec .= join(',', @tags);
     }
 
-    my $url = config('url');
-    cmd "git push $url $refspec"
+    my $remote = config('remote');
+    cmd "git push $remote $refspec"
         or die "push: Error pushing change.\n";
 
     unless ($Options{keep}) {
