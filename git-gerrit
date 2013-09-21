@@ -386,6 +386,12 @@ $commands{new} = sub {
     my $topic = shift @ARGV
         or pod2usage "new: Missing TOPIC.\n";
 
+    $topic !~ m:/:
+        or die "new: the topic name ($topic) should not contain slashes.\n";
+
+    $topic =~ m:\D:
+        or die "new: the topic name ($topic) should contain at lease one non-digit character.\n";
+
     my $branch = shift @ARGV || current_branch;
 
     if (my ($upstream, $id) = change_branch_info($branch)) {
