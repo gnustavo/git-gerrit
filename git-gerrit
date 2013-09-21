@@ -519,11 +519,7 @@ EOF
 };
 
 $commands{config} = sub {
-    foreach my $var (sort keys %Config) {
-        foreach my $val (@{$Config{$var}}) {
-            print "git-gerrit.$var:\t$val\n";
-        }
-    }
+    cmd "git config --get-regexp \"^git-gerrit\\.\"";
 };
 
 $commands{checkout} = sub {
