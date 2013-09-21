@@ -60,5 +60,7 @@ files/lines touched by the change.
 idea comes from L<querrit|https://gitorious.org/querrit/querrit>
 shortcuts.
 
+=item * implement 'git gerrit checkout topic'
+
 =back
 
