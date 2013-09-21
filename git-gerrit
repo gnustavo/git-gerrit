@@ -565,7 +565,6 @@ $commands{push} = sub {
         'keep',
         'force',
         'rebase',
-        'update',
         'draft',
         'topic=s',
         'reviewer=s@',
@@ -593,12 +592,9 @@ push: you have more than one commit that you are about to push.
 EOF
     }
 
-    if ($Options{update}) {
+    if ($Options{rebase} || $id =~ /\D/) {
         update_branch($upstream)
             or die "push: Non-fast-forward pull. Please, merge or rebase your branch first.\n";
-    }
-
-    if ($Options{rebase} || $id =~ /\D/) {
         cmd "git rebase $upstream";
     }
 
