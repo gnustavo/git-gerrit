@@ -16,15 +16,15 @@ use Gerrit::REST;
 # them. Each subcommand supports a specific set of options which are
 # grokked by the get_options routine below.
 
-my %Options = ( verbose => 0, debug => 0 );
+my %Options = ( debug => 0 );
 sub get_options {
     my (@opt_specs) = @_;
-    return GetOptions(\%Options, 'verbose+', 'debug', @opt_specs)
+    return GetOptions(\%Options, 'debug', @opt_specs)
         or pod2usage(2);
 }
 
 # The cmd routine is used to invoke shell commands, usually git. It
-# prints out the command before invoking it in verbose operation.
+# prints out the command before invoking it in debug operation.
 
 sub cmd {
     my ($cmd) = @_;
@@ -408,7 +408,10 @@ $commands{new} = sub {
 };
 
 $commands{query} = sub {
-    get_options('limit=i');
+    get_options(
+        'verbose',
+        'limit=i',
+    );
 
     my (@names, @queries);
     foreach my $arg (@ARGV) {
@@ -477,7 +480,7 @@ $commands{my} = sub {
 };
 
 $commands{show} = sub {
-    get_options();
+    get_options('verbose');
 
     my $id = shift @ARGV || current_change_id()
         or pod2usage "show: Missing CHANGE.\n";
@@ -789,7 +792,7 @@ git-gerrit - Git extension to implement a Gerrit workflow
     git gerrit new        [--update] TOPIC [BRANCH]
     git gerrit query      [--limit LIMIT] [--verbose] [[NAME=]QUERY]*
     git gerrit my         [--limit LIMIT] [--verbose] [changes|drafts|watched|starred]
-    git gerrit show       [CHANGE]
+    git gerrit show       [--verbose] [CHANGE]
     git gerrit config
     git gerrit checkout   [CHANGE]
     git gerrit backout    [--keep]
