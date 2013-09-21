@@ -758,13 +758,13 @@ $commands{revert} = sub {
 };
 
 $commands{submit} = sub {
-    get_options('wait-for-merge');
+    get_options('no-wait-for-merge');
 
     my $id = shift @ARGV || current_change_id()
         or pod2usage "submit: Missing CHANGE.\n";
 
     my @args = ("/changes/$id/submit");
-    push @args, { wait_for_merge => 1 } if $Options{'wait-for-merge'};
+    push @args, { wait_for_merge => 1 } unless $Options{'no-wait-for-merge'};
     gerrit(POST => @args);
 };
 
