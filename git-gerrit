@@ -593,7 +593,7 @@ EOF
             or die "push: Non-fast-forward pull. Please, merge or rebase your branch first.\n";
     }
 
-    if ($Options{rebase}) {
+    if ($Options{rebase} || $id =~ /\D/) {
         cmd "git rebase $upstream";
     }
 
