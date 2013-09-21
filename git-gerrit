@@ -408,7 +408,7 @@ $commands{new} = sub {
             or die "new: Non-fast-forward pull. Please, merge or rebase your branch first.\n";
     }
 
-    cmd "git checkout -b change/$branch/$topic";
+    cmd "git checkout -b change/$branch/$topic $branch";
 
     install_commit_msg_hook;
 };
