@@ -1,0 +1,6 @@
+/Git-Gerrit-*
+/.build
+*.bak
+*.tar.gz
+*~
+/.tidyall.d/
