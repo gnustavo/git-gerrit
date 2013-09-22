@@ -1,5 +1,5 @@
 Revision history for Git-Gerrit. -*- text -*-
 
-\{\{$NEXT\}\}
+{{$NEXT}}
 
   - First git-gerrit release. Still untested beta code.
