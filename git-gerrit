@@ -922,10 +922,10 @@ will be asked for interactively.
 
 =back
 
-=head1 CHANGES, CHANGE-IDs, and CHANGE-BRANCHES
+=head1 GLOSSARY
 
-Let's try to make a few concepts clear so that the sub-commands
-documentation below makes more sense.
+There are a few concepts that should be clear in order to the
+sub-commands documentation below to make sense.
 
 =over
 
