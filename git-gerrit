@@ -11,6 +11,8 @@ use URI;
 use URI::Escape;
 use Gerrit::REST;
 
+our $VERSION = '0.000';
+
 # The %Options hash is used to hold the command line options passed to
 # all git-gerrit subcommands. The --verbose option is common to all of
 # them. Each subcommand supports a specific set of options which are
@@ -768,6 +770,14 @@ $commands{submit} = sub {
     gerrit(POST => @args);
 };
 
+$commands{version} = sub {
+    print "git-gerrit version $VERSION\n";
+    cmd "git version";
+    my $version = eval { gerrit(GET => '/config/server/version') };
+    $version //= "pre-2.7, since it doesn't support the Get Version REST Endpoint";
+    print "Gerrit version $version\n";
+};
+
 # MAIN
 
 my $command = shift
@@ -806,6 +816,7 @@ git-gerrit - Git extension to implement a Gerrit workflow
     git gerrit submit   [--no-wait-for-merge] [CHANGE]
 
     git gerrit config
+    git gerrit version
 
 =head1 DESCRIPTION
 
@@ -1316,6 +1327,11 @@ The B<config> sub-command lists Git's configuration variables in the
 C<git-gerrit> section. It's just a shortcut to
 
     git config --get-regexp "^git-gerrit\."
+
+=head2 git gerrit version
+
+The B<version> sub-command shows the versions of git-gerrit, Git, and
+Gerrit that you're using.
 
 =head1 COMMIT-MSG HOOK
 
