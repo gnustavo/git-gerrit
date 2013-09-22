@@ -673,6 +673,7 @@ $commands{review} = sub {
     get_options(
         'editor',
         'message=s',
+        'keep',
     );
 
     my %review;
@@ -696,29 +697,50 @@ $commands{review} = sub {
     die "review: You must specify a message or a vote to review.\n"
         unless keys %review;
 
-    my $id = shift @ARGV || current_change_id()
-        or pod2usage "review: Missing CHANGE.\n";
+    if (my $id = shift @ARGV) {
+        gerrit(POST => "/changes/$id/revisions/current/review", \%review);
+    } else {
+        my $branch = current_branch;
 
-    gerrit(POST => "/changes/$id/revisions/current/review", \%review);
+        my ($upstream, $id) = change_branch_info($branch)
+            or die "review: Missing CHANGE.\n";
+
+        gerrit(POST => "/changes/$id/revisions/current/review", \%review);
+
+        unless ($Options{keep}) {
+            cmd("git checkout $upstream") and cmd("git branch -D $branch");
+        }
+    }
 };
 
 $commands{abandon} = sub {
     get_options(
         'editor',
         'message=s',
+        'keep',
     );
 
-    my $id = shift @ARGV || current_change_id()
-        or pod2usage "abandon: Missing CHANGE.\n";
-
-    my @args = ("/changes/$id/abandon");
+    my @args;
     if ($Options{message}) {
         push @args, { message => $Options{message} };
     } elsif ($Options{editor}) {
         push @args, { message => get_message_from_editor };
     }
 
-    gerrit(POST => @args);
+    if (my $id = shift @ARGV) {
+        gerrit(POST => "/changes/$id/abandon", @args);
+    } else {
+        my $branch = current_branch;
+
+        my ($upstream, $id) = change_branch_info($branch)
+            or die "abandon: Missing CHANGE.\n";
+
+        gerrit(POST => "/changes/$id/abandon", @args);
+
+        unless ($Options{keep}) {
+            cmd("git checkout $upstream") and cmd("git branch -D $branch");
+        }
+    }
 };
 
 $commands{restore} = sub {
@@ -760,14 +782,28 @@ $commands{revert} = sub {
 };
 
 $commands{submit} = sub {
-    get_options('no-wait-for-merge');
+    get_options(
+        'no-wait-for-merge',
+        'keep',
+    );
 
-    my $id = shift @ARGV || current_change_id()
-        or pod2usage "submit: Missing CHANGE.\n";
-
-    my @args = ("/changes/$id/submit");
+    my @args;
     push @args, { wait_for_merge => 1 } unless $Options{'no-wait-for-merge'};
-    gerrit(POST => @args);
+
+    if (my $id = shift @ARGV) {
+        gerrit(POST => "/changes/$id/submit", @args);
+    } else {
+        my $branch = current_branch;
+
+        my ($upstream, $id) = change_branch_info($branch)
+            or die "submit: Missing CHANGE.\n";
+
+        gerrit(POST => "/changes/$id/submit", @args);
+
+        unless ($Options{keep}) {
+            cmd("git checkout $upstream") and cmd("git branch -D $branch");
+        }
+    }
 };
 
 $commands{version} = sub {
@@ -809,11 +845,11 @@ git-gerrit - Git extension to implement a Gerrit workflow
     git gerrit backout  [--keep]
 
     git gerrit reviewer [--add USERS] [--confirm] [--delete USERS] [CHANGE]
-    git gerrit review   [--message TEXT] [--editor] [[LABEL]=VOTE]* [CHANGE]
-    git gerrit abandon  [--message TEXT] [--editor] [CHANGE]
+    git gerrit review   [--message TEXT] [--editor] [--keep] [[LABEL]=VOTE]* [CHANGE]
+    git gerrit abandon  [--message TEXT] [--editor] [--keep] [CHANGE]
     git gerrit restore  [--message TEXT] [--editor] [CHANGE]
     git gerrit revert   [--message TEXT] [--editor] [CHANGE]
-    git gerrit submit   [--no-wait-for-merge] [CHANGE]
+    git gerrit submit   [--no-wait-for-merge] [--keep] [CHANGE]
 
     git gerrit config
     git gerrit version
@@ -1241,13 +1277,15 @@ remove a group of reviewers.
 After adding and removing reviewers, C<git gerrit reviewers> shows the
 remaining list of reviewers of the CHANGE.
 
-=head2 git gerrit review [--message TEXT] [--editor] [[LABEL]=VOTE]* [CHANGE]
+=head2 git gerrit review [--message TEXT] [--editor] [--keep] [[LABEL]=VOTE]* [CHANGE]
 
-The B<review> sub-command allows you review (duh!) a CHANGE by casting
-votes and adding messages to it.
+The B<review> sub-command allows you to review (duh!) a CHANGE by
+casting votes and adding messages to it.
 
 You can omit the CHANGE argument if you are in a change-branch, in
-which case you'll be reviewing the associated change.
+which case you'll be reviewing the associated change. In this case,
+after a successful review, the change-branch will be deleted and its
+upstream checked out.
 
 You can cast multiple votes using C<LABEL=VOTE> arguments, where LABEL
 names a Gerrit
@@ -1269,15 +1307,21 @@ C<GIT_EDITOR> with the C<git help var> command) for you to compose the
 message. It's handy when you are in the mood to make a really helpfull
 review.
 
+=item B<--keep>
+
+This option avoids the change-branch deletion after a successful review.
+
 =back
 
-=head2 git gerrit submit [--no-wait-for-merge] [CHANGE]
+=head2 git gerrit submit [--no-wait-for-merge] [--keep] [CHANGE]
 
 The B<submit> sub-command submits an approved CHANGE, making Gerrit
 merge it into its remote upstream branch.
 
 You can omit the CHANGE argument if you are in a change-branch, in
-which case you'll be submitting the associated change.
+which case you'll be submitting the associated change. In this case,
+after a successful submition, the change-branch will be deleted and
+its upstream checked out.
 
 =over
 
@@ -1287,17 +1331,33 @@ By default git-gerrit will wait for the merge of the change into its
 branch to complete in Gerrit. This option tells it not to wait and
 finish as soon as it receives Gerrit's submit acknowledge.
 
+=item B<--keep>
+
+This option avoids the change-branch deletion after a successful
+submition.
+
 =back
 
-=head2 git gerrit abandon [--message TEXT] [--editor] [CHANGE]
+=head2 git gerrit abandon [--message TEXT] [--editor] [--keep] [CHANGE]
 
 The B<abandon> sub-command abandons an unmerged CHANGE.
 
 You can omit the CHANGE argument if you are in a change-branch, in
-which case you'll be abandoning the associated change.
+which case you'll be abandoning the associated change. In this case,
+after a successful abandonment, the change-branch will be deleted and
+its upstream checked out.
 
 You can add a message to the action using the same options as the
 C<git gerrit review> sub-command.
+
+=over
+
+=item B<--keep>
+
+This option avoids the change-branch deletion after a successful
+abandonment.
+
+=back
 
 =head2 git gerrit restore [--message TEXT] [--editor] [CHANGE]
 
