@@ -6,7 +6,7 @@ git-gerrit - Git extension to implement a Gerrit workflow
 
 WARNING: THIS IS STILL BETA CODE.
 
-Git-gerrit is a Git extension to manage changes using <Gerrit Code
+Git-gerrit is a Git extension to manage changes using L<Gerrit Code
 Review|http://code.google.com/p/gerrit/>.
 
 Git-gerrit offers a rich set of sub-commands to make it easy to
@@ -23,8 +23,8 @@ Make sure you have at least Perl 5.10 installed. Check this with:
     perl -v
 
 Then, you should install the Git::Gerrit distribution from
-L<CPAN|http://search.cpan.org/>. You can do it manually or via one of
-these commands:
+L<CPAN|http://search.cpan.org/dist/Git-Gerrit/>. You can do it
+manually or via one of these commands:
 
     cpanm Git::Gerrit
 
@@ -32,7 +32,7 @@ these commands:
 
 Both commands should take care of non-core Perl dependencies for you.
 
-To read this documentation you can type
+Git-gerrit's full documentation can be read by typing
 
     perldoc git-gerrit
 

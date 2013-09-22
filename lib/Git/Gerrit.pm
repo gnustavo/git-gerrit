@@ -396,7 +396,7 @@ $Commands{new} = sub {
         or die "new: the topic name ($topic) should not contain slashes.\n";
 
     $topic =~ m:\D:
-        or die "new: the topic name ($topic) should contain at lease one non-digit character.\n";
+        or die "new: the topic name ($topic) should contain at least one non-digit character.\n";
 
     my $branch = shift @ARGV || current_branch;
 
