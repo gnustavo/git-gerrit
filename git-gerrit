@@ -1439,22 +1439,22 @@ do something like this:
 
 =head2 Reviewing a change
 
-    git gerrit my
+    git gerrit my changes
     git gerrit checkout 1234
     git show
     git gerrit review --editor =-1
-    git gerrit backout
 
-First you get a list of changes for review. Then you checkout one
-change and study it. Finally, you record your review and backout to
-the upstream branch.
+First, if you don't know the C<{change-id}> of the change you want to
+review, you ask C<my changes> to get a list of the changes still
+unreviewed. Then you checkout one change and study it. Finally, you
+record your review and gets back to the change's upstream branch.
 
 Without git-gerrit you'd have to perform the review using Gerrit's web
 interface.
 
 =head2 Amendind a change
 
-    git gerrit checkout ID
+    git gerrit checkout 1234
     # edit
     git commit --amend
     git gerrit push
