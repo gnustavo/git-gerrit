@@ -208,10 +208,13 @@ sub set_credentials {
     return;
 }
 
-# The get_message_from_editor routine invokes the git editor to let
-# the user compose a message and returns it.
+# The get_message routine returns the message argument to the
+# --message option. If the option is not present it invokes the git
+# editor to let the user compose a message and returns it.
 
-sub get_message_from_editor {
+sub get_message {
+    return $Options{message} if exists $Options{message};
+
     chomp(my $editor = qx/git var GIT_EDITOR/);
 
     die "Please, see 'git help var' to see how to set up an editor for git messages.\n"
@@ -233,9 +236,6 @@ EOF
     my $message = File::Slurp::read_file($tmp->filename);
 
     $message =~ s/(?<=\n)#.*?\n//gs; # remove all lines starting with '#'
-
-    die "Aborting because the message is empty.\n"
-        if $message !~ /\S/s;
 
     return $message;
 }
@@ -671,17 +671,14 @@ $commands{reviewer} = sub {
 
 $commands{review} = sub {
     get_options(
-        'editor',
         'message=s',
         'keep',
     );
 
     my %review;
 
-    if ($Options{message}) {
-        $review{message} = $Options{message};
-    } elsif ($Options{editor}) {
-        $review{message} = get_message_from_editor;
+    if (my $message = get_message) {
+        $review{message} = $message;
     }
 
     # Set all votes
@@ -715,16 +712,14 @@ $commands{review} = sub {
 
 $commands{abandon} = sub {
     get_options(
-        'editor',
         'message=s',
         'keep',
     );
 
     my @args;
-    if ($Options{message}) {
-        push @args, { message => $Options{message} };
-    } elsif ($Options{editor}) {
-        push @args, { message => get_message_from_editor };
+
+    if (my $message = get_message) {
+        push @args, { message => $message };
     }
 
     if (my $id = shift @ARGV) {
@@ -744,38 +739,30 @@ $commands{abandon} = sub {
 };
 
 $commands{restore} = sub {
-    get_options(
-        'editor',
-        'message=s',
-    );
+    get_options('message=s');
 
     my $id = shift @ARGV || current_change_id()
         or pod2usage "restore: Missing CHANGE.\n";
 
     my @args = ("/changes/$id/restore");
-    if ($Options{message}) {
-        push @args, { message => $Options{message} };
-    } elsif ($Options{editor}) {
-        push @args, { message => get_message_from_editor };
+
+    if (my $message = get_message) {
+        push @args, { message => $message };
     }
 
     gerrit(POST => @args);
 };
 
 $commands{revert} = sub {
-    get_options(
-        'editor',
-        'message=s',
-    );
+    get_options('message=s');
 
     my $id = shift @ARGV || current_change_id()
         or pod2usage "revert: Missing CHANGE.\n";
 
     my @args = ("/changes/$id/revert");
-    if ($Options{message}) {
-        push @args, { message => $Options{message} };
-    } elsif ($Options{editor}) {
-        push @args, { message => get_message_from_editor };
+
+    if (my $message = get_message) {
+        push @args, { message => $message };
     }
 
     gerrit(POST => @args);
@@ -845,10 +832,10 @@ git-gerrit - Git extension to implement a Gerrit workflow
     git gerrit backout  [--keep]
 
     git gerrit reviewer [--add USERS] [--confirm] [--delete USERS] [CHANGE]
-    git gerrit review   [--message TEXT] [--editor] [--keep] [[LABEL]=VOTE]* [CHANGE]
-    git gerrit abandon  [--message TEXT] [--editor] [--keep] [CHANGE]
-    git gerrit restore  [--message TEXT] [--editor] [CHANGE]
-    git gerrit revert   [--message TEXT] [--editor] [CHANGE]
+    git gerrit review   [--message TEXT] [--keep] [[LABEL]=VOTE]* [CHANGE]
+    git gerrit abandon  [--message TEXT] [--keep] [CHANGE]
+    git gerrit restore  [--message TEXT] [CHANGE]
+    git gerrit revert   [--message TEXT] [CHANGE]
     git gerrit submit   [--no-wait-for-merge] [--keep] [CHANGE]
 
     git gerrit config
@@ -1277,7 +1264,7 @@ remove a group of reviewers.
 After adding and removing reviewers, C<git gerrit reviewers> shows the
 remaining list of reviewers of the CHANGE.
 
-=head2 git gerrit review [--message TEXT] [--editor] [--keep] [[LABEL]=VOTE]* [CHANGE]
+=head2 git gerrit review [--message TEXT] [--keep] [[LABEL]=VOTE]* [CHANGE]
 
 The B<review> sub-command allows you to review (duh!) a CHANGE by
 casting votes and adding messages to it.
@@ -1294,18 +1281,16 @@ and VOTE is a negative, zero, or positive number. If you omit the
 LABEL name (but not the equal sign!) you'll be voting in the standard
 C<Code-Review> label.
 
+The Git editor (see the definintion of C<GIT_EDITOR> with the C<git
+help var> command) is invoked for you to compose a message to be added
+to the review.
+
 =over
 
 =item B<--message TEXT>
 
-This option adds a message to the review.
-
-=item B<--editor>
-
-This option invokes Git's configured editor (see the definintion of
-C<GIT_EDITOR> with the C<git help var> command) for you to compose the
-message. It's handy when you are in the mood to make a really helpfull
-review.
+This option adds a message to the review avoinding the Git editor
+invocation.
 
 =item B<--keep>
 
@@ -1338,7 +1323,7 @@ submition.
 
 =back
 
-=head2 git gerrit abandon [--message TEXT] [--editor] [--keep] [CHANGE]
+=head2 git gerrit abandon [--message TEXT] [--keep] [CHANGE]
 
 The B<abandon> sub-command abandons an unmerged CHANGE.
 
@@ -1347,8 +1332,18 @@ which case you'll be abandoning the associated change. In this case,
 after a successful abandonment, the change-branch will be deleted and
 its upstream checked out.
 
-You can add a message to the action using the same options as the
-C<git gerrit review> sub-command.
+The Git editor (see the definintion of C<GIT_EDITOR> with the C<git
+help var> command) is invoked for you to compose a message to be added
+to the action.
+
+=over
+
+=item B<--message TEXT>
+
+This option adds a message to the review avoinding the Git editor
+invocation.
+
+=back
 
 =over
 
@@ -1359,17 +1354,27 @@ abandonment.
 
 =back
 
-=head2 git gerrit restore [--message TEXT] [--editor] [CHANGE]
+=head2 git gerrit restore [--message TEXT] [CHANGE]
 
 The B<restore> sub-command restores an abandoned CHANGE.
 
 You can omit the CHANGE argument if you are in a change-branch, in
 which case you'll be restoring the associated change.
 
-You can add a message to the action using the same options as the
-C<git gerrit review> sub-command.
+The Git editor (see the definintion of C<GIT_EDITOR> with the C<git
+help var> command) is invoked for you to compose a message to be added
+to the action.
 
-=head2 git gerrit revert [--message TEXT] [--editor] [CHANGE]
+=over
+
+=item B<--message TEXT>
+
+This option adds a message to the review avoinding the Git editor
+invocation.
+
+=back
+
+=head2 git gerrit revert [--message TEXT] [CHANGE]
 
 The B<revert> sub-command reverts an already merged CHANGE. Gerrit
 does so by creating, in the server, a new change with an inverted
@@ -1378,8 +1383,18 @@ patch on top of the CHANGE remote upstream branch.
 You can omit the CHANGE argument if you are in a change-branch, in
 which case you'll be reverting the associated change.
 
-You can add a message to the action using the same options as the
-C<git gerrit review> sub-command.
+The Git editor (see the definintion of C<GIT_EDITOR> with the C<git
+help var> command) is invoked for you to compose a message to be added
+to the action.
+
+=over
+
+=item B<--message TEXT>
+
+This option adds a message to the review avoinding the Git editor
+invocation.
+
+=back
 
 =head2 git gerrit config
 
@@ -1442,7 +1457,7 @@ do something like this:
     git gerrit my changes
     git gerrit checkout 1234
     git show
-    git gerrit review --editor =-1
+    git gerrit review =-1
 
 First, if you don't know the C<{change-id}> of the change you want to
 review, you ask C<my changes> to get a list of the changes still
