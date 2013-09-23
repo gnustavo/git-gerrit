@@ -2,4 +2,10 @@ Revision history for Git-Gerrit. -*- text -*-
 
 {{$NEXT}}
 
+0.002     2013-09-22 21:45:17 America/Sao_Paulo
+
+  - Fix documentation.
+
+0.001     2013-09-22 17:01:46 America/Sao_Paulo
+
   - First git-gerrit release. Still untested beta code.
