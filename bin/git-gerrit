@@ -721,3 +721,7 @@ best name of all. From it, git-gerrit took the change-branch concept.
 A very simple tool to query Gerrit and make it easier to push changes.
 
 =back
+
+If you're interested in Gerrit automation per se, you can take a look
+at the L<Gerrit::REST> Perl module, which is used by C<git-gerrit> to
+interact with Gerrit via it's REST API.
