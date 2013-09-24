@@ -7,7 +7,7 @@ use 5.010;
 use strict;
 use warnings;
 
-use Git::Gerrit qw/run/;
+use App::GitGerrit qw/run/;
 
 return 1 if caller;
 
@@ -80,13 +80,13 @@ Make sure you have at least Perl 5.10 installed. Check this with:
 
     perl -v
 
-Then, you should install the Git::Gerrit distribution from
-L<CPAN|http://search.cpan.org/dist/Git-Gerrit/>. You can do it
+Then, you should install the App::GitGerrit distribution from
+L<CPAN|http://search.cpan.org/dist/App-GitGerrit/>. You can do it
 manually or via one of these commands:
 
-    cpanm Git::Gerrit
+    cpanm App::GitGerrit
 
-    cpan Git::Gerrit
+    cpan App::GitGerrit
 
 Both commands should take care of non-core Perl dependencies for you.
 

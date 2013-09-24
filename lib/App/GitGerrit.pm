@@ -3,8 +3,8 @@ use 5.010;
 use strict;
 use warnings;
 
-package Git::Gerrit;
-# ABSTRACT: Git extension to implement a Gerrit workflow
+package App::GitGerrit;
+# ABSTRACT: A container for functions for the git-gerrit program
 
 use Pod::Usage;
 use Getopt::Long qw(:config auto_version auto_help);
@@ -12,7 +12,7 @@ use URI;
 use URI::Escape;
 use Gerrit::REST;
 
-# Git-gerrit was converted from a script into a module following this:
+# App::GitGerrit was converted from a script into a module following this:
 # http://elliotlovesperl.com/2009/11/23/how-to-structure-perl-programs/
 use Exporter 'import';
 our @EXPORT_OK = qw/run/;
@@ -798,7 +798,7 @@ $Commands{submit} = sub {
 };
 
 $Commands{version} = sub {
-    print "git-gerrit version $Git::Gerrit::VERSION\n";
+    print "git-gerrit version $App::GitGerrit::VERSION\n";
     cmd "git version";
     my $version = eval { gerrit(GET => '/config/server/version') };
     $version //= "pre-2.7, since it doesn't support the Get Version REST Endpoint";
@@ -824,17 +824,18 @@ sub run {
 1;
 __END__
 
+
 =head1 SYNOPSIS
 
-    use Git::Gerrit qw/run/;
+    use App::GitGerrit qw/run/;
     return 1 if caller;
     exit run();
 
 =head1 DESCRIPTION
 
-You're not supposed to use this module directly. :-)
+You're not supposed to use this module directly!
 
-It's used by the git-gerrit script which comes in the same CPAN
+It's used by the C<git-gerrit> script which comes in the same CPAN
 distribution. All the documentation that exists can be read via
 
     perldoc git-gerrit
