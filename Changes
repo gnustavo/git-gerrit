@@ -2,6 +2,10 @@ Revision history for App::GitGerrit. -*- text -*-
 
 {{$NEXT}}
 
+0.005     2013-09-25 10:00:47 America/Sao_Paulo
+
+  - Small fix.
+
 0.004     2013-09-24 22:19:07 America/Sao_Paulo
 
   - Just a little documentation reorganization.
