@@ -2,6 +2,10 @@ Revision history for App::GitGerrit. -*- text -*-
 
 {{$NEXT}}
 
+0.004     2013-09-24 22:19:07 America/Sao_Paulo
+
+  - Just a little documentation reorganization.
+
 0.003     2013-09-23 22:08:59 America/Sao_Paulo
 
   - Rename git-gerrit's distribution from Git::Gerrit to
