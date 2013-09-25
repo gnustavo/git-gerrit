@@ -664,7 +664,7 @@ $Commands{reviewer} = sub {
     print "There are ", scalar(@reviewers), " reviewers currently:\n";
     foreach my $reviewer (@reviewers) {
         print "$reviewer->{name}\t$reviewer->{email}\t";
-        foreach my $approval (sort keys $reviewer->{approvals}) {
+        foreach my $approval (sort keys %{$reviewer->{approvals}}) {
             print "$approval:$reviewer->{approvals}{$approval}";
         } continue {
             print ", ";
