@@ -10,7 +10,6 @@ use Pod::Usage;
 use Getopt::Long qw(:config auto_version auto_help);
 use URI;
 use URI::Escape;
-use Gerrit::REST;
 
 # App::GitGerrit was converted from a script into a module following this:
 # http://elliotlovesperl.com/2009/11/23/how-to-structure-perl-programs/
@@ -253,6 +252,7 @@ sub gerrit {
     state $gerrit;
     unless ($gerrit) {
         my ($username, $password) = get_credentials;
+        require Gerrit::REST;
         $gerrit = Gerrit::REST->new(config('baseurl')->as_string, $username, $password);
         eval { $gerrit->GET("/projects/" . uri_escape_utf8(config('project'))) };
         if ($@) {
