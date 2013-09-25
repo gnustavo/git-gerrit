@@ -1,6 +1,7 @@
 =head1 NAME
 
-git-gerrit - Git extension to implement a Gerrit workflow
+The git-gerrit script is a Git extension to implement a Gerrit
+workflow.
 
 =head1 DESCRIPTION
 
