@@ -23,17 +23,23 @@ Make sure you have at least Perl 5.10 installed. Check this with:
 
     perl -v
 
-Then, you should install the App::GitGerrit distribution from
-L<CPAN|http://search.cpan.org/dist/App-GitGerrit/>. You can do it
-manually or via one of these commands:
+Then, you should install the
+L<App::GitGerrit|http://search.cpan.org/dist/App-GitGerrit/>
+distribution from L<CPAN|http://search.cpan.org/>. The best way to do
+it is to use a CPAN package installer, such as
+L<cpanm|http://search.cpan.org/dist/App-cpanminus/bin/cpanm>, like
+this:
 
     cpanm App::GitGerrit
 
-    cpan App::GitGerrit
+If you don't have C<cpanm> already, read the L<INSTALLATION section of
+the
+App::cpanminus|http://search.cpan.org/dist/App-cpanminus/lib/App/cpanminus.pm#INSTALLATION>
+module.
 
-Both commands should take care of non-core Perl dependencies for you.
-
-Git-gerrit's full documentation can be read by typing
+The cpanm should take care of other Perl dependencies for you. The
+C<git-gerrit> script should be installed in a directory already in
+your PATH. To read its documentation you can type
 
     perldoc git-gerrit
 
