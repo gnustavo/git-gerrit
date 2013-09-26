@@ -166,10 +166,10 @@ host=$host
 path=$path
 EOF
 
-    if (my $username = config('username')) {
-        $description .= <<EOF
-username=$username
-EOF
+    if (my $userinfo = $baseurl->userinfo) {
+        my ($username, $password) = split /:/, $userinfo, 2;
+        $description .= "username=$username\n" if $username;
+        $description .= "password=$password\n" if $password;
     }
 
     return $description;

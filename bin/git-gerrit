@@ -104,9 +104,7 @@ your PATH. To read its documentation you can type
 
 You must tell git-gerrit how to interact with your Gerrit server by
 defining a few configuration variables in Git's C<git-gerrit>
-configuration section.
-
-The variables C<baseurl>, C<project>, and C<remote> are required. If
+configuration section. All these variables are required. If
 they aren't set, git-gerrit will provide a helpful message telling
 you how to set them up.
 
@@ -116,7 +114,8 @@ you how to set them up.
 
 The base URL of your Gerrit server. This usually can be configured
 globally, if you have a Gerrit server hosting several of your
-repositories.
+repositories. It's a good idea to insert your username into this URL
+to avoid being asked for it interactively.
 
 =item * B<git-gerrit.project>
 
@@ -126,11 +125,6 @@ The project name associated with your repository.
 
 The Git remote name you use to push commits to and fetch commits from
 your Gerrit server.
-
-=item * B<git-gerrit.username>
-
-The username you use to authenticate with Gerrit. If not specified, it
-will be asked for interactively.
 
 =back
 
