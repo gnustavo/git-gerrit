@@ -548,7 +548,7 @@ $Commands{checkout} = sub {
     cmd "git checkout $branch";
 };
 
-$Commands{backout} = sub {
+$Commands{upstream} = sub {
     get_options('keep');
 
     my $branch = current_branch;
@@ -562,7 +562,7 @@ $Commands{backout} = sub {
             }
         }
     } else {
-        die "backout: You aren't in a change branch. I cannot back you out.\n";
+        die "upstream: You aren't in a change branch. There is no upstream to go to.\n";
     }
 };
 

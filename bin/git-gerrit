@@ -25,7 +25,7 @@ __END__
     git gerrit show     [--verbose] [CHANGE]
 
     git gerrit checkout [CHANGE]
-    git gerrit backout  [--keep]
+    git gerrit upstream [--keep]
 
     git gerrit reviewer [--add USERS] [--confirm] [--delete USERS] [CHANGE]
     git gerrit review   [--message TEXT] [--keep] [[LABEL]=VOTE]* [CHANGE]
@@ -419,9 +419,9 @@ for the change, it will be updated to the change's current patch-set.
 If you omit the CHANGE argument and you are in a change-branch, it will
 be updated with its current patch-set.
 
-=head2 git gerrit backout [--keep]
+=head2 git gerrit upstream [--keep]
 
-The B<backout> sub-command should be invoked when you're in a
+The B<upstream> sub-command should be invoked when you're in a
 change-branch. It checks out the upstream branch and deletes the
 change-branch.
 
