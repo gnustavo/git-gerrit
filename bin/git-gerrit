@@ -421,11 +421,12 @@ be updated with its current patch-set.
 
 The shorter name C<co> can also be used instead of C<checkout>.
 
-=head2 git gerrit upstream|up [--keep]
+=head2 git gerrit upstream|up [--keep] [--delete]
 
 The B<upstream> sub-command should be invoked when you're in a
 change-branch. It checks out the upstream branch and deletes the
-change-branch.
+change-branch if it's associated with an already pushed change, i.e.,
+if its name ends in a legacy numeric id, not in a topic name.
 
 The shorter name C<up> can also be used instead of C<upstream>.
 
@@ -433,7 +434,14 @@ The shorter name C<up> can also be used instead of C<upstream>.
 
 =item B<--keep>
 
-This option avoids the change-branch deletion.
+This option prevents the change-branch deletion after the upstream
+checkout.
+
+=item B<--delete>
+
+This options forces the change-branch deletion when it's a new
+change. However, the <--keep> option has precedence, meaning that if
+both options are present the change-branch isn't deleted.
 
 =back
 

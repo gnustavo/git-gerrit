@@ -549,16 +549,19 @@ $Commands{checkout} = $Commands{co} = sub {
 };
 
 $Commands{upstream} = $Commands{up} = sub {
-    get_options('keep');
+    get_options(
+        'keep',
+        'delete',
+    );
 
     my $branch = current_branch;
 
     if (my ($upstream, $id) = change_branch_info($branch)) {
         if (cmd "git checkout $upstream") {
-            if ($id =~ /^\d+$/ && ! $Options{keep}) {
-                cmd "git branch -D $branch";
-            } else {
+            if ($Options{keep} || ! $Options{delete} && $id =~ /\D/) {
                 warn "Keeping $branch\n";
+            } else {
+                cmd "git branch -D $branch";
             }
         }
     } else {
