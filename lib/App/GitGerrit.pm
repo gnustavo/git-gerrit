@@ -528,7 +528,7 @@ $Commands{config} = sub {
     cmd "git config --get-regexp \"^git-gerrit\\.\"";
 };
 
-$Commands{checkout} = sub {
+$Commands{checkout} = $Commands{co} = sub {
     get_options();
 
     my $id = shift @ARGV || current_change_id()
@@ -548,7 +548,7 @@ $Commands{checkout} = sub {
     cmd "git checkout $branch";
 };
 
-$Commands{upstream} = sub {
+$Commands{upstream} = $Commands{up} = sub {
     get_options('keep');
 
     my $branch = current_branch;

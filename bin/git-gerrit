@@ -24,8 +24,8 @@ __END__
     git gerrit my       [--limit LIMIT] [--verbose] [changes|drafts|watched|starred]
     git gerrit show     [--verbose] [CHANGE]
 
-    git gerrit checkout [CHANGE]
-    git gerrit upstream [--keep]
+    git gerrit checkout|co [CHANGE]
+    git gerrit upstream|up [--keep]
 
     git gerrit reviewer [--add USERS] [--confirm] [--delete USERS] [CHANGE]
     git gerrit review   [--message TEXT] [--keep] [[LABEL]=VOTE]* [CHANGE]
@@ -406,7 +406,7 @@ requires a separate REST call, making the result a bit slower.
 
 =back
 
-=head2 git gerrit checkout [CHANGE]
+=head2 git gerrit checkout|co [CHANGE]
 
 The B<checkout> sub-command fetches a CHANGE from Gerrit, creates a
 change-branch pointing to it and checks it out, leaving your working
@@ -419,11 +419,15 @@ for the change, it will be updated to the change's current patch-set.
 If you omit the CHANGE argument and you are in a change-branch, it will
 be updated with its current patch-set.
 
-=head2 git gerrit upstream [--keep]
+The shorter name C<co> can also be used instead of C<checkout>.
+
+=head2 git gerrit upstream|up [--keep]
 
 The B<upstream> sub-command should be invoked when you're in a
 change-branch. It checks out the upstream branch and deletes the
 change-branch.
+
+The shorter name C<up> can also be used instead of C<upstream>.
 
 =over
 
