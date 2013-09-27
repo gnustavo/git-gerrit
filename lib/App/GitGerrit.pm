@@ -782,7 +782,7 @@ $Commands{submit} = sub {
     );
 
     my @args;
-    push @args, { wait_for_merge => 1 } unless $Options{'no-wait-for-merge'};
+    push @args, { wait_for_merge => 'true' } unless $Options{'no-wait-for-merge'};
 
     if (my $id = shift @ARGV) {
         gerrit(POST => "/changes/$id/submit", @args);
