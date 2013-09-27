@@ -18,7 +18,8 @@ __END__
 =head1 SYNOPSIS
 
     git gerrit new      [--update] TOPIC [BRANCH]
-    git gerrit push     [--keep] [--force] [--update] [--rebase] [--draft] [--reviewer USER] [--cc USER]
+    git gerrit push     [--keep] [--force] [--update] [--rebase] [--draft]
+                        [--topic TOPIC] [--reviewer USER] [--cc USER]
 
     git gerrit query    [--limit LIMIT] [--verbose] [[NAME=]QUERY]*
     git gerrit my       [--limit LIMIT] [--verbose] [changes|drafts|watched|starred]
@@ -166,7 +167,7 @@ sub-commands documentation below to make sense.
 =item B<change>
 
 Each commit pushed to one of Gerrit's virtual branches (C<refs/for> or
-C<refs/draft>) creates a C<change> for review.
+C<refs/drafts>) creates a C<change> for review.
 
 =item B<Change-Id>
 
@@ -273,7 +274,7 @@ the newest state of your project, which is usually the right thing to do.
 You will be warned if your working area is dirty, as this is sometimes
 a mistake.
 
-=head2 git gerrit push [--keep] [--force] [--rebase] [--draft] [--reviewer USERS] [--cc USERS]
+=head2 git gerrit push [--keep] [--force] [--rebase] [--draft] [--topic=TOPIC] [--reviewer USERS] [--cc USERS]
 
 The C<push> sub-command should be invoked to push a change-branch to
 Gerrit's C<refs/for/> branch associated with its upstream branch. It
@@ -329,6 +330,13 @@ the change-branch before the push.
 This option makes git-gerrit push the change-branch to
 C<refs/drafts/UPSTREAM> instead of to C<refs/for/UPSTREAM>, creating a
 draft change in Gerrit.
+
+=item B<--topic TOPIC>
+
+This option specifies another name for the topic that will be
+associated with the change. By default, the topic name is the last
+component of the current change-branch name, as specified by the C<git
+gerrit new> sub-command.
 
 =item B<--reviewer USERS>
 
@@ -691,12 +699,12 @@ do something like this:
 
     git checkout master
     git pull --ff-only
-    git checkout -b topic
+    git checkout -b change/master/topic
     # edit
     git commit
     git push origin HEAD:refs/for/master
     git checkout master
-    git branch -D topic
+    git branch -D change/master/topic
 
 =head2 Reviewing a change
 
