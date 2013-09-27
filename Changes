@@ -2,6 +2,25 @@ Revision history for App::GitGerrit. -*- text -*-
 
 {{$NEXT}}
 
+0.006     2013-09-26 21:33:39 America/Sao_Paulo
+
+  [Changes]
+  - Rename 'git gerrit backout' to 'git gerrit upstream', which is
+    more meaningful.
+
+  - The git-gerrit.username config variable doesn't exist anymore. The
+    username can be informed via the git-gerrit.baseurl variable.
+
+  - Improved documentation.
+
+  [New features]
+  - Now 'git gerrit co' is an alias for 'git gerrit checkout'.
+
+  - Now 'git gerrit up' is an alias for 'git gerrit upstream'.
+
+  - You can force 'git gerrit upstream' to delete a new change-branch
+    with the --delete option.
+
 0.005     2013-09-25 10:00:47 America/Sao_Paulo
 
   - Small fix.
