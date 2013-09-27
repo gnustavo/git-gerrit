@@ -17,24 +17,24 @@ __END__
 
 =head1 SYNOPSIS
 
-    git gerrit new      [--update] TOPIC [BRANCH]
-    git gerrit push     [--keep] [--force] [--update] [--rebase] [--draft]
-                        [--topic TOPIC] [--reviewer USER] [--cc USER]
+    git gerrit new         [--update] TOPIC [BRANCH]
+    git gerrit push        [--keep] [--force] [--rebase] [--draft]
+                           [--topic TOPIC] [--reviewer USER] [--cc USER]
 
-    git gerrit query    [--limit LIMIT] [--verbose] [[NAME=]QUERY]*
-    git gerrit my       [--limit LIMIT] [--verbose] [changes|drafts|watched|starred]
-    git gerrit show     [CHANGE]
+    git gerrit query       [--limit LIMIT] [--verbose] [[NAME=]QUERY]*
+    git gerrit my          [--limit LIMIT] [--verbose] [changes|drafts|watched|starred]
+    git gerrit show        [CHANGE]
 
-    git gerrit checkout|co [CHANGE]
-    git gerrit upstream|up [--keep]
-    git gerrit cherry-pick|cp [OPTIONS]* CHANGE
+    git gerrit checkout    [CHANGE]
+    git gerrit upstream    [--keep]
+    git gerrit cherry-pick [OPTIONS]* CHANGE
 
-    git gerrit reviewer [--add USERS] [--confirm] [--delete USERS] [CHANGE]
-    git gerrit review   [--message TEXT] [--keep] [[LABEL]=VOTE]* [CHANGE]
-    git gerrit abandon  [--message TEXT] [--keep] [CHANGE]
-    git gerrit restore  [--message TEXT] [CHANGE]
-    git gerrit revert   [--message TEXT] [CHANGE]
-    git gerrit submit   [--no-wait-for-merge] [--keep] [CHANGE]
+    git gerrit reviewer    [--add USERS] [--confirm] [--delete USERS] [CHANGE]
+    git gerrit review      [--message TEXT] [--keep] [[LABEL]=VOTE]* [CHANGE]
+    git gerrit abandon     [--message TEXT] [--keep] [CHANGE]
+    git gerrit restore     [--message TEXT] [CHANGE]
+    git gerrit revert      [--message TEXT] [CHANGE]
+    git gerrit submit      [--no-wait-for-merge] [--keep] [CHANGE]
 
     git gerrit config
     git gerrit version
@@ -133,15 +133,15 @@ your Gerrit server.
 =head1 AUTHENTICATION
 
 Git-gerrit uses Git's credential management system via its
-L<git-credential(1)> command to obtain credentials for connecting to
+B<git-credential> command to obtain credentials for connecting to
 Gerrit. You can take advantage of this by configuring Git's
 C<credential.helper> variable to use a persistent credential storage
 and avoid being asked for the authentication credentials
-repeatedly. Please, read L<gitcredentials(7)> manpage to know how to
+repeatedly. Please, read B<gitcredentials> manpage to know how to
 configure this system.
 
-On Unix-like systems in general, the L<git-credential-cache(1)>
-command which comes with Git seems to be a good choice, as a balanced
+On Unix-like systems in general, the B<git-credential-cache> command
+which comes with Git seems to be a good choice, as a balanced
 compromise between convenience and security:
 
     git config --global credential.helper cache --timeout 3600
@@ -473,9 +473,11 @@ both options are present the change-branch isn't deleted.
 The B<cherry-pick> sub-command fetches CHANGE from Gerrit and applies
 it to the current branch using the C<git cherry-pick> command. The
 CHANGE id is required and every OPTION (but --debug) is passed as-is
-to the C<git cherry-pick> command. You should read
-L<git-cherry-pick(1)> manpage to know what options are available. Some
-of the most usefull ones are these: B<-e>, B<-x>, and B<-n>.
+to the C<git cherry-pick> command. You should read B<git-cherry-pick>
+manpage to know what options are available. Some of the most usefull
+ones are these: B<-e>, B<-x>, and B<-n>.
+
+The shorter name C<cp> can also be used instead of C<cherry-pick>.
 
 =head2 git gerrit reviewer [--add USERS] [--confirm] [--delete USERS] [CHANGE]
 
@@ -667,9 +669,9 @@ Gerrit that you're using.
 =head1 COMMIT-MSG HOOK
 
 Gerrit provides a C<commit-msg> hook for Git that should be installed
-in your repositories. The purpose of it is to insert a C<Change-Id>
-footer in the commit messages so that Gerrit can discern independent
-commits from merely amended ones.
+in your repositories. Its purpose is to insert a C<Change-Id> footer
+in the commit messages so that Gerrit can discern independent commits
+from merely amended ones.
 
 Git-gerrit takes care of installing this hook for you. When you invoke
 its C<new> or C<push> sub-commands, it checks to see if your

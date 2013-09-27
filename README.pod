@@ -69,10 +69,6 @@ shortcuts.
 
 To checkout one or more changes associated with a Gerrit topic.
 
-=item * better format the output of 'git gerrit query'
-
-I'm thinking about using Text::Table to do it.
-
 =item * 'git gerrit review --verbose'
 
 This should work like 'git commit --verbose' so that the diff should
@@ -87,6 +83,10 @@ user to insert comments below the diff lines. These comments would be
 recorded as draft comments associated with files or lines.
 
 This would be really cool.
+
+=item * implement 'git gerrit web [CHANGE]'
+
+To go to CHANGE's Gerrit web page in a browser.
 
 =back
 
