@@ -39,10 +39,6 @@ An incomplete list of things to do in random order:
 
 Allow for the checkout of a specific patchset of a change.
 
-=item * implement 'git gerrit cherrypick'
-
-From git-review.
-
 =item * implement 'git gerrit diff'
 
 To show diffs between patchsets.

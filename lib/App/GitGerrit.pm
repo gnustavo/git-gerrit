@@ -571,6 +571,33 @@ $Commands{upstream} = $Commands{up} = sub {
     }
 };
 
+$Commands{'cherry-pick'} = $Commands{cp} = sub {
+    # The 'gerrit cherry-pick' sub-commands passes all of its options,
+    # but --debug, to 'git cherry-pick'.
+    Getopt::Long::Configure('pass_through');
+    get_options();
+
+    # Since we're passing through options, they're left at the start
+    # of @ARGV. So, we pop the change-id instead of shifting it.
+    my $id = pop @ARGV
+        or pod2usage "cherrypick: Missing CHANGE.\n";
+
+    # Make sure we haven't popped out an option.
+    $id !~ /^-/
+        or pod2usage "cherrypick: Missing CHANGE.\n";
+
+    my $change = get_change($id);
+
+    my ($revision) = values %{$change->{revisions}};
+
+    my ($url, $ref) = @{$revision->{fetch}{http}}{qw/url ref/};
+
+    cmd "git fetch $url $ref"
+        or die "cherrypick: can't git fetch $url $ref\n";
+
+    cmd join(' ', 'git cherry-pick', @ARGV, 'FETCH_HEAD');
+};
+
 $Commands{push} = sub {
     get_options(
         'keep',
