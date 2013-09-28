@@ -35,8 +35,6 @@ An incomplete list of things to do in random order:
 
 =item * Test, test, test, ...
 
-=item * test on Windows
-
 =item * checkout CHANGE.patchsetNumber
 
 Allow for the checkout of a specific patchset of a change.

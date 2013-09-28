@@ -153,35 +153,39 @@ sub install_commit_msg_hook {
 # get and set credentials for git commands and also for Gerrit REST
 # interactions.
 
-sub credential_description {
+sub credential_description_file {
+    my ($password) = @_;
+
     my $baseurl = config('baseurl');
 
-    my $protocol = $baseurl->scheme;
-    my $host     = $baseurl->host;
-    my $path     = $baseurl->path;
+    my %credential = (
+        protocol => $baseurl->scheme,
+        host     => $baseurl->host,
+        path     => $baseurl->path,
+        password => $password,
+    );
 
-    my $description = <<EOF;
-protocol=$protocol
-host=$host
-path=$path
-EOF
-
+    # Try to get the username from the baseurl
     if (my $userinfo = $baseurl->userinfo) {
         my ($username, $password) = split /:/, $userinfo, 2;
-        $description .= "username=$username\n" if $username;
-        $description .= "password=$password\n" if $password;
+        $credential{username} = $username;
     }
 
-    return $description;
+    require File::Temp;
+    my $fh = File::Temp->new();
+
+    while (my ($key, $value) = each %credential) {
+        $fh->print("$key=$value\n") if $value;
+    }
+
+    $fh->print("\n\n");
+    $fh->close();
+
+    return ($fh, $fh->filename);
 }
 
 sub get_credentials {
-    # Create a temporary file to hold the credential description
-    require File::Temp;
-    my ($fh, $credfile) = File::Temp::tempfile(UNLINK => 1);
-    $fh->print(credential_description(), "\n");
-    $fh->print("\n");
-    $fh->close;
+    my ($fh, $credfile) = credential_description_file;
 
     my %credentials;
     open my $pipe, '-|', "git credential fill <$credfile";
@@ -204,11 +208,9 @@ sub set_credentials {
     $what =~ /^(?:approve|reject)$/
         or die "set_credentials \$what argument ($what) must be either 'approve' or 'reject'\n";
 
-    open my $git, '|-', "git credential $what";
-    $git->print(credential_description(), "password=$password\n\n");
-    $git->close;
+    my ($fh, $credfile) = credential_description_file($password);
 
-    return;
+    return system("git credential $what <$credfile") == 0;
 }
 
 # The get_message routine returns the message argument to the
