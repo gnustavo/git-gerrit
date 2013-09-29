@@ -519,10 +519,32 @@ EOF
             if exists $change->{$key};
     }
 
-    for my $label (sort keys %{$change->{permited_labels}}) {
-        for my $review (sort {$a->{name} cmp $b->{name}} @{$change->{labels}{$label}{all}}) {
-            printf "%12s %-32s %+2d\n", "$label:", @{$review}{qw/name value/};
+    print "\n";
+    # We want to produce a table in which the first column lists the
+    # reviewer names and the other columns have their votes for each
+    # label. However, the change object has this information
+    # inverted. So, we have to first collect all votes.
+    my @labels = sort keys %{$change->{labels}};
+    my %reviewers;
+    while (my ($label, $info) = each %{$change->{labels}}) {
+        foreach my $vote (@{$info->{all}}) {
+            $reviewers{$vote->{name}}{$label} = $vote->{value};
         }
+    }
+
+    # And now we can output the vote table
+    print join("\t", 'Reviewer', @labels), "\n";
+    foreach my $name (sort keys %reviewers) {
+        print $name;
+        my $reviewer = $reviewers{$name};
+        foreach my $label (@labels) {
+            if (exists $reviewer->{$label}) {
+                print "\t$reviewer->{$label}";
+            } else {
+                print "\t-";
+            }
+        }
+        print "\n";
     }
 };
 
