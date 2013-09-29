@@ -494,7 +494,7 @@ $Commands{my} = sub {
 };
 
 $Commands{show} = sub {
-    get_options('verbose');
+    get_options();
 
     my $id = shift @ARGV || current_change_id()
         or pod2usage "show: Missing CHANGE.\n";
@@ -507,12 +507,6 @@ $Commands{show} = sub {
     Subject: $change->{subject}
       Owner: $change->{owner}{name}
 EOF
-
-    if ($Options{verbose}) {
-        if (my $topic = gerrit(GET => "/changes/$id/topic")) {
-            $change->{topic} = $topic;
-        }
-    }
 
     for my $key (qw/project branch topic created updated status reviewed mergeable/) {
         printf "%12s %s\n", "\u$key:", $change->{$key}
