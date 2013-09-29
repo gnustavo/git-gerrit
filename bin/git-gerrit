@@ -359,8 +359,9 @@ option more than once, to invite more than a set of users.
 
 The B<query> sub-command let's you list Gerrit changes meeting
 specific criteria. The matching changes are shown in tabular format,
-one change per line, listing their legacy ID, status, time of last
-update, project name, branch name, owner name, and subject line.
+one change per line, listing their legacy ID, status, Code-Review
+vote, time of last update, project name, branch name, owner name, and
+subject line.
 
 You may pass a list of queries. Each QUERY's results is presented
 separated from the other by a empty line and a header containing the
@@ -369,12 +370,12 @@ query's name and expression inside brackets. For example:
     $ git gerrit query 'Starred changes=is:starred' is:draft
 
     [Starred changes=is:starred]
-    ID    STATUS UPDATED    PROJECT    BRANCH OWNER          SUBJECT
-    1186  MERGED 2013-09-18 helloworld master Gustavo Chaves [SB-1] Test amend 3
+    ID    STATUS CR UPDATED    PROJECT    BRANCH OWNER          SUBJECT
+    1186  MERGED +2 2013-09-18 helloworld master Gustavo Chaves [SB-1] Test amend 3
 
     [QUERY=is:draft]
-    ID    STATUS UPDATED    PROJECT    BRANCH OWNER          SUBJECT
-    1187  NEW    2013-09-08 helloworld master Gustavo Chaves [SB-2] Make foo
+    ID    STATUS CR UPDATED    PROJECT    BRANCH OWNER          SUBJECT
+    1187  NEW       2013-09-08 helloworld master Gustavo Chaves [SB-2] Make foo
 
 Note that unnamed queries are prefixed by C<QUERY=> instead of by their names.
 

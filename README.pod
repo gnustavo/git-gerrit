@@ -69,10 +69,6 @@ shortcuts.
 
 To checkout one or more changes associated with a Gerrit topic.
 
-=item * show votes with --verbose
-
-This should work on 'git gerrit show' and 'git gerrit query'.
-
 =item * better format the output of 'git gerrit query'
 
 I'm thinking about using Text::Table to do it.

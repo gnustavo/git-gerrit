@@ -295,7 +295,7 @@ sub query_changes {
 
     push @queries, "n=$Options{limit}" if $Options{limit};
 
-    push @queries, "o=DETAILED_ACCOUNTS";
+    push @queries, "o=LABELS";
 
     my $changes = gerrit(GET => "/changes/?" . join('&', @queries));
     $changes = [$changes] if ref $changes->[0] eq 'HASH';
@@ -380,6 +380,28 @@ sub current_change_id {
     return $id;
 }
 
+# This routine receives the hash-ref mapped to the 'Code-Review' label
+# in a change's 'labels' key when it's fetched with the option
+# LABELS. For more information, please read:
+# https://gerrit-review.googlesource.com/Documentation/rest-api-changes.html#label-info
+
+sub code_review {
+    my ($cr) = @_;
+    if (! defined $cr) {
+        return '';
+    } elsif (exists $cr->{rejected}) {
+        return '-2';
+    } elsif (exists $cr->{disliked}) {
+        return '-1';
+    } elsif (exists $cr->{approved}) {
+        return '+2';
+    } elsif (exists $cr->{recommended}) {
+        return '+1';
+    } else {
+        return '';
+    }
+}
+
 ############################################################
 # MAIN
 
@@ -441,11 +463,11 @@ $Commands{query} = sub {
     my $changes = query_changes(@queries);
 
     # FIXME: consider using Text::Table for formatting
-    my $format = "%-5s %-9s %-19s %-20s %-12s %-24s %s\n";
+    my $format = "%-5s %-9s %2s %-19s %-20s %-12s %-24s %s\n";
     for (my $i=0; $i < @$changes; ++$i) {
         print "\n[$names[$i]=$queries[$i]]\n";
         next unless @{$changes->[$i]};
-        printf $format, 'ID', 'STATUS', 'UPDATED', 'PROJECT', 'BRANCH', 'OWNER', 'SUBJECT';
+        printf $format, 'ID', 'STATUS', 'CR', 'UPDATED', 'PROJECT', 'BRANCH', 'OWNER', 'SUBJECT';
         foreach my $change (sort {$b->{updated} cmp $a->{updated}} @{$changes->[$i]}) {
             if ($Options{verbose}) {
                 if (my $topic = gerrit(GET => "/changes/$change->{id}/topic")) {
@@ -455,6 +477,7 @@ $Commands{query} = sub {
             printf $format,
                 $change->{_number},
                 $change->{status},
+                code_review($change->{labels}{'Code-Review'}),
                 substr($change->{updated}, 0, 19),
                 $change->{project},
                 $change->{branch},
