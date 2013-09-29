@@ -464,19 +464,23 @@ $Commands{query} = sub {
 
     my $changes = query_changes(@queries);
 
-    # FIXME: consider using Text::Table for formatting
-    my $format = "%-5s %-9s %2s %-19s %-20s %-12s %-24s %s\n";
+    my $table = eval {require Text::Table}
+        ? Text::Table->new(qw/ID STATUS CR UPDATED PROJECT BRANCH OWNER SUBJECT/)
+        : undef;
+    state $format = "%-5s %-9s %2s %-19s %-20s %-12s %-24s %s\n";
+
     for (my $i=0; $i < @$changes; ++$i) {
         print "\n[$names[$i]=$queries[$i]]\n";
         next unless @{$changes->[$i]};
-        printf $format, 'ID', 'STATUS', 'CR', 'UPDATED', 'PROJECT', 'BRANCH', 'OWNER', 'SUBJECT';
+        printf $format, qw/ID STATUS CR UPDATED PROJECT BRANCH OWNER SUBJECT/
+            unless $table;
         foreach my $change (sort {$b->{updated} cmp $a->{updated}} @{$changes->[$i]}) {
             if ($Options{verbose}) {
                 if (my $topic = gerrit(GET => "/changes/$change->{id}/topic")) {
                     $change->{branch} .= " ($topic)";
                 }
             }
-            printf $format,
+            my @values = (
                 $change->{_number},
                 $change->{status},
                 code_review($change->{labels}{'Code-Review'}),
@@ -484,8 +488,15 @@ $Commands{query} = sub {
                 $change->{project},
                 $change->{branch},
                 substr($change->{owner}{name}, 0, 24),
-                $change->{subject};
+                $change->{subject},
+            );
+            if ($table) {
+                $table->add(@values);
+            } else {
+                printf $format, @values;
+            }
         }
+        print $table->table() if $table;
     }
     print "\n";
 };
@@ -552,19 +563,22 @@ EOF
     }
 
     # And now we can output the vote table
-    print join("\t", 'Reviewer', @labels), "\n";
+    my $table = eval {require Text::Table}
+        ? Text::Table->new('REVIEWER', map {"$_\n&num"} @labels)
+        : undef;
+
+    printf "%-32s %-s\n", 'REVIEWER', join("\t", @labels)
+        unless $table;
+
     foreach my $name (sort keys %reviewers) {
-        print $name;
-        my $reviewer = $reviewers{$name};
-        foreach my $label (@labels) {
-            if (exists $reviewer->{$label}) {
-                print "\t$reviewer->{$label}";
-            } else {
-                print "\t-";
-            }
+        my @votes = map {$_ > 0 ? "+$_" : $_} map {defined $_ ? $_ : '0'} @{$reviewers{$name}}{@labels};
+        if ($table) {
+            $table->add($name, @votes);
+        } else {
+            printf "%-32s %-s\n", substr($name, 0, 32), join("\t", @votes);
         }
-        print "\n";
     }
+    print $table->table() if $table;
 };
 
 $Commands{config} = sub {
