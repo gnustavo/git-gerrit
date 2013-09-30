@@ -2,6 +2,39 @@ Revision history for App::GitGerrit. -*- text -*-
 
 {{$NEXT}}
 
+0.007     2013-09-29 22:26:20 America/Sao_Paulo
+
+  [Changes]
+
+  - Remove the --verbose option from 'git gerrit show', as it wasn't
+    adding anything useful.
+
+  - Improve the output formating of 'git gerrit show' and 'git gerrit
+    query' using the Text::Table module, if available.
+
+  - Change the module dependency information, making it recommend,
+    instead of require, the modules Text::Table and LWP::Simple.
+
+  - Improve documentation.
+
+  [New features]
+
+  - Implement the 'git gerrit cherry-pick' command.
+
+  - The output of 'git gerrit query' now shows a new column 'RC',
+    containing the most relevant vote for the 'Code-Review' label.
+
+  [Fixes]
+
+  - Fix 'git gerrit submit', which wasn't working at all.
+
+  - Fix 'git gerrit show', which wasn't outputting the votes for the
+    change labels.
+
+  - Fix credential management on Windows.
+
+  - Fix IO encoding/decoding making it locale-based.
+
 0.006     2013-09-26 21:33:39 America/Sao_Paulo
 
   [Changes]
