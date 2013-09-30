@@ -742,7 +742,7 @@ $Commands{reviewer} = sub {
     if (my $users = $Options{add}) {
         my $confirm = $Options{confirm} ? 'true' : 'false';
         foreach my $user (split(/,/, join(',', @$users))) {
-            gerrit(POST => "/changes/$id/reviewers/$user", { reviewer => $user, confirm => $confirm});
+            gerrit(POST => "/changes/$id/reviewers", { reviewer => $user, confirm => $confirm});
         }
     }
 
