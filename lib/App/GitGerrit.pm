@@ -2,6 +2,8 @@ use utf8;
 use 5.010;
 use strict;
 use warnings;
+use locale ':not_characters';
+use open ':locale';
 
 package App::GitGerrit;
 # ABSTRACT: A container for functions for the git-gerrit program
