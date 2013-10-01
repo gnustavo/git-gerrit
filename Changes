@@ -2,10 +2,17 @@ Revision history for App::GitGerrit. -*- text -*-
 
 {{$NEXT}}
 
+0.008     2013-09-30 22:53:58 America/Sao_Paulo
+
+  [Fixes]
+  - Fix 'git gerrit reviewers'. It wasn't adding reviewers correctly.
+
+  - Avoid the use of ':locale' IO layer on Windows, because it's not
+    well supported there.
+
 0.007     2013-09-29 22:26:20 America/Sao_Paulo
 
   [Changes]
-
   - Remove the --verbose option from 'git gerrit show', as it wasn't
     adding anything useful.
 
@@ -18,14 +25,12 @@ Revision history for App::GitGerrit. -*- text -*-
   - Improve documentation.
 
   [New features]
-
   - Implement the 'git gerrit cherry-pick' command.
 
   - The output of 'git gerrit query' now shows a new column 'RC',
     containing the most relevant vote for the 'Code-Review' label.
 
   [Fixes]
-
   - Fix 'git gerrit submit', which wasn't working at all.
 
   - Fix 'git gerrit show', which wasn't outputting the votes for the
