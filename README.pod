@@ -41,7 +41,7 @@ Allow for the checkout of a specific patchset of a change.
 
 =item * implement 'git gerrit diff'
 
-To show diffs between patchsets.
+To show diffs between patchsets. A la git-review -m.
 
 =item * implement the '--dry-run' option
 
@@ -87,6 +87,12 @@ This would be really cool.
 =item * implement 'git gerrit web [CHANGE]'
 
 To go to CHANGE's Gerrit web page in a browser.
+
+=item * implement 'git gerrit prune'
+
+To remove stale change-branches, a la git-repo.
+
+=item * implement the equivalent of git-review -R option
 
 =back
 

@@ -201,7 +201,7 @@ C<myProject~master~I8473b95934b5732ac55d26311a706c9c2bde9940>).
 
 You may pass any form of change-id to git-gerrit's sub-commands when
 they require a CHANGE argument. Most commonly, you'll be using the
-legacy numeric ID, just because it's shorter.
+legacy numeric ID, just because it's more convenient.
 
 =item B<upstream branch>
 
@@ -234,8 +234,10 @@ change-branches managed by git-gerrit.
 
 =head1 SUB-COMMANDS
 
-Each git-gerrit sub-command has its own set of options. But there are
-a global option accepted by all of them:
+Each git-gerrit sub-command has its own set of options, described in
+its own section below.
+
+The B<--debug> option is accepted by all sub-commands:
 
 =over
 
@@ -247,6 +249,9 @@ the execution of its sub-commands. System commands are prefixed with
 B<CMD:> and Gerrit REST calls with B<GERRIT:>.
 
 =back
+
+Options names may be abbreviated to uniqueness, case does not matter,
+and a single dash is sufficient, even for long option names.
 
 =head2 git gerrit new [--update] TOPIC [BRANCH]
 
