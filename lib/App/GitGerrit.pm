@@ -3,7 +3,20 @@ use 5.010;
 use strict;
 use warnings;
 use locale ':not_characters';
-use open ':locale';
+
+# The following incantation is here to avoid this bug:
+# https://rt.perl.org/rt3/Public/Bug/Display.html?id=63402
+my $encoding;
+BEGIN {
+    if ($^O eq 'MSWin32') {
+	require Win32;
+	my $cp = Win32::GetConsoleCP();
+	$encoding = ":encoding(cp$cp)";
+    } else {
+	$encoding = ':locale';
+    }
+}
+use open ':std', $encoding;
 
 package App::GitGerrit;
 # ABSTRACT: A container for functions for the git-gerrit program
