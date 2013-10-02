@@ -904,6 +904,7 @@ $Commands{submit} = sub {
 };
 
 $Commands{version} = sub {
+    print "Perl version $^V\n";
     print "git-gerrit version $App::GitGerrit::VERSION\n";
     cmd "git version";
     my $version = eval { gerrit(GET => '/config/server/version') };
