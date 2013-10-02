@@ -2,6 +2,12 @@ Revision history for App::GitGerrit. -*- text -*-
 
 {{$NEXT}}
 
+0.009     2013-10-02 10:54:29 America/Sao_Paulo
+
+  [Fixes]
+  - Drop Win32 dependency which was preventing the build on any other
+  platform.
+
 0.008     2013-09-30 22:53:58 America/Sao_Paulo
 
   [Fixes]
