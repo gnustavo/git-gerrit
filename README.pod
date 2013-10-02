@@ -92,7 +92,14 @@ To go to CHANGE's Gerrit web page in a browser.
 
 To remove stale change-branches, a la git-repo.
 
-=item * implement the equivalent of git-review -R option
+=item * show change comments in 'git gerrit show --verbose'
+
+=item * show current change-set id in 'git gerrit show'
+
+=item * reformat dates on 'git gerrit query'
+
+Perhaps, showing them as deltas since last change, a la what Gerrit
+does on its web interface.
 
 =back
 
