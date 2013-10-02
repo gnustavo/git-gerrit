@@ -169,6 +169,57 @@ your Gerrit server.
 
 =back
 
+The following configuration variables may be used to change
+git-gerrit's default operation.
+
+=over
+
+=item * B<git-gerrit.reviewers USERS [CONDITION]*>
+
+This variable specifies a list of Gerrit users to be automatically
+invited as reviewers in a B<git gerrit push> command.
+
+USERS is a colon-separated list of usernames.
+
+CONDITIONs are space-separated boolean expressions. All CONDITIONs, if
+any, must be true for USERS to be invited. If no CONDITIONS are
+specified, USERS are invited.
+
+A CONDITION may check either the name of the branch to which the
+change is being pushed or the names of the files affected by the
+change itself. The matching may be either exact or by L<regular
+expressions|perlre>, as follows.
+
+=over
+
+=item * branch=REFNAME
+
+Checks if REFNAME is exactly equal to the change's upstream name
+(without the C<refs/heads> prefix).
+
+=item * branch~REGEXP
+
+Checks if the upstream name matches REGEXP.
+
+=item * path=PATH
+
+Checks if the path of any file affected by the commit being pushed, as
+shown by C<git diff --name-only upstream..HEAD> is exactly equal to
+the complete path of one of those files.
+
+=item * path~REGEXP
+
+Checks if the path of any affected file matches REGEXP.
+
+=back
+
+You may specify the C<git-gerrit.reviewers> variable multiple
+times. All users mentioned in all specifications that match their
+CONDITIONs are invited as reviewers to the current change being
+pushed.
+
+=back
+
 =head1 AUTHENTICATION
 
 If you have Git 1.8.0 or later, git-gerrit uses Git's credential
