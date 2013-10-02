@@ -132,31 +132,60 @@ your Gerrit server.
 
 =head1 AUTHENTICATION
 
-Git-gerrit uses Git's credential management system via its
-B<git-credential> command to obtain credentials for connecting to
-Gerrit. You can take advantage of this by configuring Git's
-C<credential.helper> variable to use a persistent credential storage
-and avoid being asked for the authentication credentials
-repeatedly. Please, read B<gitcredentials> manpage to know how to
-configure this system.
+If you have Git 1.8.0 or later, git-gerrit uses Git's credential
+management system via its B<git-credential> command to obtain
+credentials for connecting to Gerrit. You can take advantage of this
+by configuring Git's C<credential.helper> variable to use a persistent
+credential storage and avoid being asked for the authentication
+credentials repeatedly. Please, read B<gitcredentials> manpage to know
+how to configure this system. But here are a few tips anyway:
 
-On Unix-like systems in general, the B<git-credential-cache> command
-which comes with Git seems to be a good choice, as a balanced
-compromise between convenience and security:
+=over
 
-    git config --global credential.helper cache --timeout 3600
+=item * B<On Ubuntu Linux (tested on 13.04)>
 
-On Ubuntu systems you can try the
+Use the
 L<git-credential-gnome-keyring|http://stackoverflow.com/questions/13385690/how-to-use-git-with-gnome-keyring-integration>
-which provides a better integration with your desktop environment.
+program which provides a very nice integration with your desktop
+environment. You have to compile the helper first:
 
+    sudo apt-get install libgnome-keyring-dev
+    sudo make -C /usr/share/doc/git/contrib/credential/gnome-keyring
     git config --global credential.helper /usr/share/doc/git/contrib/credential/gnome-keyring/git-credential-gnome-keyring
 
-On Windows systems the best choice seems to be the third-party
-application
-L<git-credential-winstore|http://gitcredentialstore.codeplex.com/>.
+=item * B<On other Unix-like systems>
+
+The B<git-credential-cache> command which comes with Git is as a
+balanced compromise between convenience and security:
+
+    git config --global credential.helper cache --timeout 86400
+
+=item * B<On Windows systems>
+
+The best choice seems to be the third-party application
+L<git-credential-winstore|http://gitcredentialstore.codeplex.com/>,
+which you have to install first.
 
     git config --global credential.helper winstore
+
+=back
+
+If you're using a pre-1.8 Git that doesn't support the
+B<git-credential> command, there are a few fall-backs.
+
+First, git-gerrit tries to get credentials from the
+C<git-gerrit.baseurl> configuration variable. The URL should be in a
+format like C<https://username:password@host/path>. Security conscious
+people should avoid putting credentials there, but if you do
+git-gerrit will be satisfied.
+
+Then, git-gerrit tries to load Perl's L<Net::Netrc> module, if
+available, to get credentials from a L<netrc(5)> file.
+
+As a last resort, git-gerrit tries to load Perl's L<Term::Prompt>
+module to prompt you for the credentials.
+
+If none of this works, git-gerrit dies screaming.
 
 =head1 GLOSSARY
 
