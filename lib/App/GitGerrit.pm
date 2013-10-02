@@ -18,6 +18,7 @@ BEGIN {
 }
 use open ':std', $encoding;
 
+$App::GitGerrit::VERSION = 'unreleased';
 package App::GitGerrit;
 # ABSTRACT: A container for functions for the git-gerrit program
 
