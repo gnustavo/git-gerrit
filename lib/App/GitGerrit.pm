@@ -673,10 +673,11 @@ $Commands{'cherry-pick'} = $Commands{cp} = sub {
 };
 
 $Commands{push} = sub {
+    $Options{rebase} = '';      # false by default
     get_options(
         'keep',
         'force',
-        'rebase',
+        'rebase!',
         'draft',
         'topic=s',
         'reviewer=s@',
@@ -704,10 +705,12 @@ push: you have more than one commit that you are about to push.
 EOF
     }
 
-    if ($Options{rebase} || $id =~ /\D/) {
+    # A --noverbose option sets $Options{rebase} to '0'.
+    if ($Options{rebase} || $Options{rebase} eq '' && $id =~ /\D/) {
         update_branch($upstream)
             or die "push: Non-fast-forward pull. Please, merge or rebase your branch first.\n";
-        cmd "git rebase $upstream";
+        cmd "git rebase $upstream"
+            or die "push: please resolve this 'git rebase $upstream' and try again.\n";
     }
 
     my $refspec = 'HEAD:refs/' . ($Options{draft} ? 'draft' : 'for') . "/$upstream";

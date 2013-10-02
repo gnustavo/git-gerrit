@@ -18,7 +18,7 @@ __END__
 =head1 SYNOPSIS
 
     git gerrit new         [--update] TOPIC [BRANCH]
-    git gerrit push        [--keep] [--force] [--rebase] [--draft]
+    git gerrit push        [--keep] [--force] [--[no]rebase] [--draft]
                            [--topic TOPIC] [--reviewer USER] [--cc USER]
 
     git gerrit query       [--limit LIMIT] [--verbose] [[NAME=]QUERY]*
@@ -280,7 +280,7 @@ the newest state of your project, which is usually the right thing to do.
 You will be warned if your working area is dirty, as this is sometimes
 a mistake.
 
-=head2 git gerrit push [--keep] [--force] [--rebase] [--draft] [--topic=TOPIC] [--reviewer USERS] [--cc USERS]
+=head2 git gerrit push [--keep] [--force] [--[no]rebase] [--draft] [--topic=TOPIC] [--reviewer USERS] [--cc USERS]
 
 The C<push> sub-command should be invoked to push a change-branch to
 Gerrit's C<refs/for/> branch associated with its upstream branch. It
@@ -317,19 +317,18 @@ change.
 This option makes git-gerrit perform multiple commit pushes without
 complaining.
 
-=item B<--rebase>
+=item B<--[no]rebase>
 
 Before a brand new change-branch (one ending in a TOPIC C<name>) is
 pushed, its upstream branch is updated and it is rebased on top of its
 upstream. This is to make sure you're pushing a change based on the
-newest project state.
+newest project state. If, by any reason, you don't want to have it
+rebased, use the C<--norebase> option.
 
 A change-branch that has been checked out (one ending in an ID) isn't
 rebased by default, because this would clutter the change review
-history in Gerrit.
-
-This option tells git-gerrit to always update the upstream and rebase
-the change-branch before the push.
+history in Gerrit. If you want it rebased nonetheless, use the
+C<--rebase> option.
 
 =item B<--draft>
 
