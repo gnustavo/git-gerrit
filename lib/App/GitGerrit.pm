@@ -557,6 +557,11 @@ $Commands{show} = sub {
       Owner: $change->{owner}{name}
 EOF
 
+    for my $date (qw/created updated/) {
+        # Remove trailing zeroes from the dates
+        $change->{$date} =~ s/\.0+$// if exists $change->{$date};
+    }
+
     for my $key (qw/project branch topic created updated status reviewed mergeable/) {
         printf "%12s %s\n", "\u$key:", $change->{$key}
             if exists $change->{$key};
