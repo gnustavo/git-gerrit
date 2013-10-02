@@ -115,9 +115,6 @@ EOF
     }
 
     $Config{baseurl}[-1] =~ s:/+$::; # trim trailing slashes from the baseurl
-
-    push @{$Config{url}}, URI->new($Config{baseurl}[-1] . '/' . $Config{project}[-1]);
-
     $Config{baseurl}[-1] = URI->new($Config{baseurl}[-1]);
 
     chomp(my $gitdir = qx/git rev-parse --git-dir/);
