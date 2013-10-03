@@ -2,6 +2,31 @@ Revision history for App::GitGerrit. -*- text -*-
 
 {{$NEXT}}
 
+0.010     2013-10-02 21:10:57 America/Sao_Paulo
+
+  [Changes]
+  - Use alternative methods to grok credentials for pre-1.8 Gits that
+    do not support the git-credential command. Git-gerrit now tries
+    alternative methods to grok credentials if it can't grok then via
+    git-credential, in this order:
+    
+    * From the userinfo part of git-gerrit.baseurl.
+    * From a .netrc file.
+    * Prompting the user.
+
+  - Implement 'git gerrit push --norebase' option to avoid rebases
+    for brand new change-branches.
+
+  - Remove trailing zeroes from dates in 'git gerrit show'.
+
+  - Make 'git gerrit version' tell the Perl version too.
+
+  - Improve 'git gerrit version' message for pre-2.6 Gerrits.
+
+  [Fixes]
+  - Fix 'git gerrit version' so that it works from an unreleased
+    version, directly from a git-gerrit Git repository clone.
+
 0.009     2013-10-02 10:54:29 America/Sao_Paulo
 
   [Fixes]
