@@ -78,29 +78,68 @@ There are a few alternatives to git-gerrit described L<below|/"SEE ALSO">.
 
 =head1 INSTALLATION
 
-Make sure you have at least Perl 5.10 installed. Check this with:
+Git-gerrit requires Perl 5.10 or newer and Git (any version should do,
+but 1.8 is better integrated). Check it like this:
 
     perl -v
+    git --version
 
-Then, you should install the
+Git-gerrit is part of the
 L<App::GitGerrit|http://search.cpan.org/dist/App-GitGerrit/>
-distribution from L<CPAN|http://search.cpan.org/>. The best way to do
-it is to use a CPAN package installer, such as
-L<cpanm|http://search.cpan.org/dist/App-cpanminus/bin/cpanm>, like
-this:
+distribution that you have to download from
+L<CPAN|http://search.cpan.org/> and install. There are a few ways to
+do it, depending on your environment. Here are a few tips:
+
+=head2 If you cook your own Perl
+
+If you build your own Perl, perhaps using
+L<perlbrew|http://perlbrew.pl/>, you know the drill:
 
     cpanm App::GitGerrit
 
-If you don't have C<cpanm> already, read the L<INSTALLATION section of
-the
-App::cpanminus|http://search.cpan.org/dist/App-cpanminus/lib/App/cpanminus.pm#INSTALLATION>
-module.
+=head2 Ubuntu or Debian?
 
-The cpanm should take care of other Perl dependencies for you. The
-C<git-gerrit> script should be installed in a directory already in
-your PATH. To read its documentation you can type
+If you want to use the Perl that comes packaged in your Debian-based
+distribution, you can install some git-gerrit dependencies from
+packaged perl modules. This are the ones packaged with Ubuntu 12.04:
 
-    perldoc git-gerrit
+    sudo apt-get install -y \
+        libfile-slurp-perl liburi-encode-perl libhtml-tree-perl libjson-perl \
+        libscope-guard-perl libcrypt-ssleay-perl libwww-perl cpanminus
+
+The nifty C<cpanm> installer should take care of the remaining
+dependencies and of installing C<git-gerrit> for you like this:
+
+    sudo su -l -c "cpanm App::GitGerrit"
+
+=head2 RedHat or CentOS?
+
+If you want to use the Perl that comes packaged in your RedHat-derived
+distribution, you can install some git-gerrit dependencies from
+packaged perl modules. This are the ones packaged with CentOS 6.4:
+
+    sudo yum install -y \
+        perl-File-Slurp perl-URI perl-HTML-Tree perl-JSON perl-Scope-Guard \
+        perl-Test-Exception perl-Test-use-ok perl-Crypt-SSLeay perl-YAML \
+        perl-CPAN perl-ExtUtils-MakeMaker
+
+The verbose C<cpan> installer should take care of the remaining
+dependencies and of installing C<git-gerrit> for you like this:
+
+    sudo su -l -c "cpan App::GitGerrit"
+
+=head2 Windows
+
+On Windows I suggest that you install L<Strawberry
+Perl|http://strawberryperl.com/>. Then, open a command line tool and
+type this:
+
+    cpanm Data::Util App::GitGerrit
+
+Note that on Windows you may have to invoke C<git-gerrit> directly as
+B<git-gerrit> and not through Git as B<git gerrit>. This is because
+Git will probably use the old Perl that comes bundled with it, not
+Strawberry Perl. Your mileage may vary, though.
 
 =head1 CONFIGURATION
 
@@ -354,7 +393,7 @@ upstream. This is to make sure you're pushing a change based on the
 newest project state. If, by any reason, you don't want to have it
 rebased, use the C<--norebase> option.
 
-A change-branch that has been checked out (one ending in an ID) isn't
+A change-branch that has been checked out (one ending in an ID) 't
 rebased by default, because this would clutter the change review
 history in Gerrit. If you want it rebased nonetheless, use the
 C<--rebase> option.
