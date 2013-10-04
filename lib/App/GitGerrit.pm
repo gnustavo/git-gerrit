@@ -111,7 +111,7 @@ to set the git remote pointing to the Gerrit project.
 
 EOF
 
-        die;
+        die "\n";
     }
 
     $Config{baseurl}[-1] =~ s:/+$::; # trim trailing slashes from the baseurl
