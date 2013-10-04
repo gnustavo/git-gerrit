@@ -516,6 +516,8 @@ $Commands{new} = sub {
     cmd "git checkout -b change/$branch/$topic $branch";
 
     install_commit_msg_hook;
+
+    return;
 };
 
 $Commands{query} = sub {
@@ -572,6 +574,8 @@ $Commands{query} = sub {
         print $table->table() if $table;
     }
     print "\n";
+
+    return;
 };
 
 my %StandardQueries = (
@@ -600,6 +604,8 @@ $Commands{my} = sub {
     }
 
     $Commands{query}();
+
+    return;
 };
 
 $Commands{show} = sub {
@@ -657,10 +663,14 @@ EOF
         }
     }
     print $table->table() if $table;
+
+    return;
 };
 
 $Commands{config} = sub {
     cmd "git config --get-regexp \"^git-gerrit\\.\"";
+
+    return;
 };
 
 $Commands{checkout} = $Commands{co} = sub {
@@ -681,6 +691,8 @@ $Commands{checkout} = $Commands{co} = sub {
         or die "Can't fetch $url\n";
 
     cmd "git checkout $branch";
+
+    return;
 };
 
 $Commands{upstream} = $Commands{up} = sub {
@@ -702,6 +714,8 @@ $Commands{upstream} = $Commands{up} = sub {
     } else {
         die "upstream: You aren't in a change branch. There is no upstream to go to.\n";
     }
+
+    return;
 };
 
 $Commands{'cherry-pick'} = $Commands{cp} = sub {
@@ -729,6 +743,8 @@ $Commands{'cherry-pick'} = $Commands{cp} = sub {
         or die "cherrypick: can't git fetch $url $ref\n";
 
     cmd join(' ', 'git cherry-pick', @ARGV, 'FETCH_HEAD');
+
+    return;
 };
 
 $Commands{push} = sub {
@@ -800,6 +816,8 @@ EOF
     }
 
     install_commit_msg_hook;
+
+    return;
 };
 
 $Commands{reviewer} = sub {
@@ -839,6 +857,8 @@ $Commands{reviewer} = sub {
         }
         print "\n";
     }
+
+    return;
 };
 
 $Commands{review} = sub {
@@ -880,6 +900,8 @@ $Commands{review} = sub {
             cmd("git checkout $upstream") and cmd("git branch -D $branch");
         }
     }
+
+    return;
 };
 
 $Commands{abandon} = sub {
@@ -908,6 +930,8 @@ $Commands{abandon} = sub {
             cmd("git checkout $upstream") and cmd("git branch -D $branch");
         }
     }
+
+    return;
 };
 
 $Commands{restore} = sub {
@@ -923,6 +947,8 @@ $Commands{restore} = sub {
     }
 
     gerrit(POST => @args);
+
+    return;
 };
 
 $Commands{revert} = sub {
@@ -938,6 +964,8 @@ $Commands{revert} = sub {
     }
 
     gerrit(POST => @args);
+
+    return;
 };
 
 $Commands{submit} = sub {
@@ -963,6 +991,8 @@ $Commands{submit} = sub {
             cmd("git checkout $upstream") and cmd("git branch -D $branch");
         }
     }
+
+    return;
 };
 
 $Commands{version} = sub {
@@ -972,6 +1002,7 @@ $Commands{version} = sub {
     my $version = eval { gerrit(GET => '/config/server/version') };
     $version //= "unknown (Certainly pre-2.7, since it doesn't support the 'Get Version' REST Endpoint.)";
     print "Gerrit version $version\n";
+    return;
 };
 
 # MAIN
