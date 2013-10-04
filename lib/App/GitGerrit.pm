@@ -53,17 +53,20 @@ sub cmd {
     return system($cmd) == 0;
 }
 
-# The %Config hash holds the git-gerrit section configuration options.
+# The grok_config routine returns a hash-ref mapping every Git
+# configuration variable under the 'git-gerrit' section to its list of
+# values.
 
-my %Config;
 sub grok_config {
+    my %config;
+
     warn "CMD: git config --get-regexp \"^git-gerrit\\.\"\n"
         if $Options{debug};
     {
         open my $pipe, '-|', 'git config --get-regexp "^git-gerrit\."';
         while (<$pipe>) {
             if (/^git-gerrit\.(\S+)\s+(.*)/) {
-                push @{$Config{$1}}, $2;
+                push @{$config{$1}}, $2;
             } else {
                 warn "Strange git-config output: $_";
             }
@@ -72,18 +75,18 @@ sub grok_config {
 
     # Override option defaults
     for my $opt (qw/verbose/) {
-        $Options{$opt} = $Config{"default-$opt"}[-1]
-            if exists $Config{"default-$opt"};
+        $Options{$opt} = $config{"default-$opt"}[-1]
+            if exists $config{"default-$opt"};
     }
 
-    unless ($Config{baseurl} && $Config{project} && $Config{remote}) {
+    unless ($config{baseurl} && $config{project} && $config{remote}) {
         warn <<EOF;
 
 *** Please configure git-gerrit:
 
 EOF
 
-        warn <<EOF unless $Config{baseurl};
+        warn <<EOF unless $config{baseurl};
 Run
 
     git config --global git-gerrit.baseurl "https://your.gerrit.domain"
@@ -93,7 +96,7 @@ configure it for this particular repository.
 
 EOF
 
-        warn <<EOF unless $Config{project};
+        warn <<EOF unless $config{project};
 Run
 
     git config git-gerrit.project "gerrit/project/name"
@@ -102,7 +105,7 @@ to set the Gerrit project your repository is associated with.
 
 EOF
 
-        warn <<EOF unless $Config{remote};
+        warn <<EOF unless $config{remote};
 Run
 
     git config git-gerrit.remote "remote"
@@ -114,21 +117,29 @@ EOF
         die "\n";
     }
 
-    $Config{baseurl}[-1] =~ s:/+$::; # trim trailing slashes from the baseurl
-    $Config{baseurl}[-1] = URI->new($Config{baseurl}[-1]);
+    $config{baseurl}[-1] =~ s:/+$::; # trim trailing slashes from the baseurl
+    $config{baseurl}[-1] = URI->new($config{baseurl}[-1]);
 
     chomp(my $gitdir = qx/git rev-parse --git-dir/);
-    push @{$Config{gitdir}}, $gitdir;
+    push @{$config{gitdir}}, $gitdir;
 
-    return;
+    return \%config;
 }
+
+# The config routine returns the value(s) associated with Git's
+# git-gerrit.$var configuration variable. In list context it returns
+# the list of all values or the empty list if the variable isn't
+# defined. In scalar context it returns the variables last set value
+# (as output by the 'git config -l' command) or undef if the variable
+# isn't defined.
 
 sub config {
     my ($var) = @_;
+    state $config = grok_config;
     if (wantarray) {
-        return exists $Config{$var} ? @{$Config{$var}}  : ();
+        return exists $config->{$var} ? @{$config->{$var}}  : ();
     } else {
-        return exists $Config{$var} ? $Config{$var}[-1] : undef;
+        return exists $config->{$var} ? $config->{$var}[-1] : undef;
     }
 }
 
@@ -971,8 +982,6 @@ sub run {
 
     exists $Commands{$command}
         or die pod2usage "Invalid command: $command.\n";
-
-    grok_config;
 
     $Commands{$command}->();
 
