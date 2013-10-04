@@ -99,41 +99,31 @@ sub grok_config {
     }
 
     unless ($config{baseurl} && $config{project} && $config{remote}) {
-        warn <<EOF;
-
-*** Please configure git-gerrit:
-
-EOF
+        info "Missing required configuration:";
 
         warn <<EOF unless $config{baseurl};
-Run
+
+Set your Gerrit server base URL like this. Omit --global if you only
+want to configure it for this particular repository.
 
     git config --global git-gerrit.baseurl "https://your.gerrit.domain"
-
-to set your Gerrit server base URL. Omit --global if you only want to
-configure it for this particular repository.
-
 EOF
 
         warn <<EOF unless $config{project};
-Run
 
-    git config git-gerrit.project "gerrit/project/name"
+Set the Gerrit project associated with your repository like this.
 
-to set the Gerrit project your repository is associated with.
-
+    git config git-gerrit.project "project/name"
 EOF
 
         warn <<EOF unless $config{remote};
-Run
+
+Set the git remote pointing to the Gerrit project like this.
 
     git config git-gerrit.remote "remote"
-
-to set the git remote pointing to the Gerrit project.
-
 EOF
 
-        die "\n";
+        die "\n\n";
     }
 
     $config{baseurl}[-1] =~ s:/+$::; # trim trailing slashes from the baseurl
