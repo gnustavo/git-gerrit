@@ -509,15 +509,15 @@ example:
           Owner: Gustavo Chaves
         Project: helloworld
          Branch: master
-        Created: 2013-09-18 16:22:21.000000000
-        Updated: 2013-09-18 19:45:56.000000000
+        Created: 2013-09-18 16:22:21
+        Updated: 2013-09-18 19:45:56
          Status: MERGED
 
 If a CHANGE is not passed the branch associated with the current
 change-branch is described. If you're not in a change-branch, you'll
 get an error.
 
-=head2 git gerrit checkout|co [CHANGE]
+=head2 git gerrit checkout [CHANGE]
 
 The B<checkout> sub-command fetches a CHANGE from Gerrit, creates a
 change-branch pointing to it and checks it out, leaving your working
@@ -532,7 +532,7 @@ be updated with its current patch-set.
 
 The shorter name C<co> can also be used instead of C<checkout>.
 
-=head2 git gerrit upstream|up [--keep] [--delete]
+=head2 git gerrit upstream [--keep] [--delete]
 
 The B<upstream> sub-command should be invoked when you're in a
 change-branch. It checks out the upstream branch and deletes the
