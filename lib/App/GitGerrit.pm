@@ -999,6 +999,7 @@ $Commands{version} = sub {
     print "Perl version $^V\n";
     print "git-gerrit version $App::GitGerrit::VERSION\n";
     cmd "git version";
+    my $baseurl = config('baseurl'); # die unless configured
     my $version = eval { gerrit(GET => '/config/server/version') };
     $version //= "unknown (Certainly pre-2.7, since it doesn't support the 'Get Version' REST Endpoint.)";
     print "Gerrit version $version\n";
