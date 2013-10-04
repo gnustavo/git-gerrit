@@ -2,6 +2,15 @@ Revision history for App::GitGerrit. -*- text -*-
 
 {{$NEXT}}
 
+0.011     2013-10-04 00:28:28 America/Sao_Paulo
+
+  [Changes]
+  - Improve instalation instructions.
+
+  - Consistently format all warning and error messages.
+
+  - Reformat the 'missing configuration' error message.
+
 0.010     2013-10-02 21:10:57 America/Sao_Paulo
 
   [Changes]
