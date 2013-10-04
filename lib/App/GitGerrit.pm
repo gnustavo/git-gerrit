@@ -33,7 +33,7 @@ use Exporter 'import';
 our @EXPORT_OK = qw/run/;
 
 # The %Options hash is used to hold the command line options passed to
-# all git-gerrit subcommands. The --verbose option is common to all of
+# all git-gerrit subcommands. The --debug option is common to all of
 # them. Each subcommand supports a specific set of options which are
 # grokked by the get_options routine below.
 
