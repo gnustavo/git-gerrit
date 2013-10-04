@@ -37,7 +37,7 @@ our @EXPORT_OK = qw/run/;
 # them. Each subcommand supports a specific set of options which are
 # grokked by the get_options routine below.
 
-my %Options = ( debug => 0 );
+my %Options = ( debug => 0, help => 0 );
 
 sub debug {
     my ($msg) = @_;
@@ -61,7 +61,8 @@ sub syntax_error {
 
 sub get_options {
     my (@opt_specs) = @_;
-    GetOptions(\%Options, 'debug', @opt_specs) or pod2usage(2);
+    GetOptions(\%Options, 'debug', 'help', @opt_specs) or pod2usage(2);
+    pod2usage({-exitval => 1, -verbose => 2}) if $Options{help};
 }
 
 # The cmd routine is used to invoke shell commands, usually git. It

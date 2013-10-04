@@ -305,16 +305,20 @@ change-branches managed by git-gerrit.
 Each git-gerrit sub-command has its own set of options, described in
 its own section below.
 
-The B<--debug> option is accepted by all sub-commands:
+The options below, however, are accepted by all of them:
 
 =over
 
-=item --debug
+=item B<--debug>
 
 This option makes git-gerrit print to STDERR every system command
 (usually a Git command) invoked and every Gerrit REST call made during
 the execution of its sub-commands. System commands are prefixed with
 B<CMD:> and Gerrit REST calls with B<GERRIT:>.
+
+=item B<--help>
+
+Shows git-gerrit's manpage and quits.
 
 =back
 
