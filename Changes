@@ -2,6 +2,24 @@ Revision history for App::GitGerrit. -*- text -*-
 
 {{$NEXT}}
 
+0.012     2013-10-06 19:30:36 America/Sao_Paulo
+
+  [New features]
+  - Implement the git-gerrit.reviewers configuration variable through
+    which it's now possible to specify default reviewers based on the
+    branch to which one pushes and also on the files being changed.
+
+  - Implement option 'git gerrit push --submit' to tell Gerrit to
+    auto-merge the change during the push, which is a feature
+    implemented in Gerrit 2.7.
+
+  - Implement option 'git gerrit push --base=BASE' to tell Gerrit to
+    select a new merge base during the push, which is a feature
+    implemented in Gerrit 2.7.
+
+  [Fixes]
+  - Require minimum versions of Gerrit::REST and Win32.
+
 0.011     2013-10-04 00:28:28 America/Sao_Paulo
 
   [Changes]
@@ -13,6 +31,12 @@ Revision history for App::GitGerrit. -*- text -*-
 
 0.010     2013-10-02 21:10:57 America/Sao_Paulo
 
+  [New Features]
+  - Implement 'git gerrit push --norebase' option to avoid rebases
+    for brand new change-branches.
+
+  - Make 'git gerrit version' tell the Perl version too.
+
   [Changes]
   - Use alternative methods to grok credentials for pre-1.8 Gits that
     do not support the git-credential command. Git-gerrit now tries
@@ -23,12 +47,7 @@ Revision history for App::GitGerrit. -*- text -*-
     * From a .netrc file.
     * Prompting the user.
 
-  - Implement 'git gerrit push --norebase' option to avoid rebases
-    for brand new change-branches.
-
   - Remove trailing zeroes from dates in 'git gerrit show'.
-
-  - Make 'git gerrit version' tell the Perl version too.
 
   - Improve 'git gerrit version' message for pre-2.6 Gerrits.
 
