@@ -761,6 +761,7 @@ $Commands{push} = sub {
         'rebase!',
         'draft',
         'topic=s',
+        'submit',
         'reviewer=s@',
         'cc=s@'
     );
@@ -807,6 +808,9 @@ EOF
     }
     if (my $ccs = $Options{cc}) {
         push @tags, map("cc=$_", split(/,/, join(',', @$ccs)));
+    }
+    if ($Options{submit}) {
+        push @tags, 'submit';
     }
     if (@tags) {
         $refspec .= '%';
