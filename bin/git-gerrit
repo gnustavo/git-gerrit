@@ -19,7 +19,7 @@ __END__
 
     git gerrit new         [--update] TOPIC [BRANCH]
     git gerrit push        [--keep] [--force] [--[no]rebase] [--draft] [--submit] \
-                           [--topic TOPIC] [--reviewer USER] [--cc USER]
+                           [--base BASE] [--topic TOPIC] [--reviewer USER] [--cc USER]
 
     git gerrit query       [--limit LIMIT] [--verbose] [[NAME=]QUERY]*
     git gerrit my          [--limit LIMIT] [--verbose] [changes|drafts|watched|starred]
@@ -352,7 +352,7 @@ the newest state of your project, which is usually the right thing to do.
 You will be warned if your working area is dirty, as this is sometimes
 a mistake.
 
-=head2 git gerrit push [--keep] [--force] [--[no]rebase] [--draft] [--submit] [--topic=TOPIC] [--reviewer USERS] [--cc USERS]
+=head2 git gerrit push [--keep] [--force] [--[no]rebase] [--draft] [--submit] [--base BASE] [--topic=TOPIC] [--reviewer USERS] [--cc USERS]
 
 The C<push> sub-command should be invoked to push a change-branch to
 Gerrit's C<refs/for/> branch associated with its upstream branch. It
@@ -413,6 +413,12 @@ draft change in Gerrit.
 This option tells Gerrit to L<auto-merge the change during
 push|http://gerrit-documentation.googlecode.com/svn/Documentation/2.7/user-upload.html#auto_merge>,
 which is a feature implemented in Gerrit 2.7.
+
+=item B<--base BASE>
+
+This option L<selects a new merge
+base|http://gerrit-documentation.googlecode.com/svn/Documentation/2.7/user-upload.html#base>
+for Gerrit, which is a feature implemented in Gerrit 2.7.
 
 =item B<--topic TOPIC>
 

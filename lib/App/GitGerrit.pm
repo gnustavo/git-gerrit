@@ -762,6 +762,7 @@ $Commands{push} = sub {
         'draft',
         'topic=s',
         'submit',
+        'base=s',
         'reviewer=s@',
         'cc=s@'
     );
@@ -811,6 +812,9 @@ EOF
     }
     if ($Options{submit}) {
         push @tags, 'submit';
+    }
+    if (my $base = $Options{base}) {
+        push @tags, "base=$base";
     }
     if (@tags) {
         $refspec .= '%';
