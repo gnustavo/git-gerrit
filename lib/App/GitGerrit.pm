@@ -607,16 +607,18 @@ $Commands{query} = sub {
 
     my $changes = query_changes(@queries);
 
-    my $table = eval {require Text::Table}
-        ? Text::Table->new(qw/ID STATUS CR UPDATED PROJECT BRANCH OWNER SUBJECT/)
-        : undef;
+    my $has_text_table = eval {require Text::Table};
     state $format = "%-5s %-9s %2s %-19s %-20s %-12s %-24s %s\n";
 
     for (my $i=0; $i < @$changes; ++$i) {
         print "\n[$names[$i]=$queries[$i]]\n";
         next unless @{$changes->[$i]};
-        printf $format, qw/ID STATUS CR UPDATED PROJECT BRANCH OWNER SUBJECT/
-            unless $table;
+        my $table;
+        if ($has_text_table) {
+            $table = Text::Table->new(qw/ID STATUS CR UPDATED PROJECT BRANCH OWNER SUBJECT/);
+        } else {
+            printf $format, qw/ID STATUS CR UPDATED PROJECT BRANCH OWNER SUBJECT/;
+        }
         foreach my $change (sort {$b->{updated} cmp $a->{updated}} @{$changes->[$i]}) {
             if ($Options{verbose}) {
                 if (my $topic = gerrit(GET => "/changes/$change->{id}/topic")) {
