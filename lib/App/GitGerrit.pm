@@ -94,7 +94,7 @@ sub grok_config {
     }
 
     # Override option defaults
-    for my $opt (qw/verbose/) {
+    foreach my $opt (qw/verbose/) {
         $Options{$opt} = $config{"default-$opt"}[-1]
             if exists $config{"default-$opt"};
     }
@@ -711,12 +711,12 @@ $Commands{show} = sub {
       Owner: $change->{owner}{name}
 EOF
 
-    for my $date (qw/created updated/) {
+    foreach my $date (qw/created updated/) {
         $change->{$date} = normalize_date($change->{$date})
             if exists $change->{$date};
     }
 
-    for my $key (qw/project branch topic created updated status reviewed mergeable/) {
+    foreach my $key (qw/project branch topic created updated status reviewed mergeable/) {
         printf "%12s %s\n", "\u$key:", $change->{$key}
             if exists $change->{$key};
     }
