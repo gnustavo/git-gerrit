@@ -358,6 +358,14 @@ sub gerrit {
     return $gerrit->$method(@_);
 }
 
+# The normalize_date routine removes the trailing zeroes from a $date.
+
+sub normalize_date {
+    my ($date) = @_;
+    $date =~ s/\.0+$//;
+    return $date;
+}
+
 # The query_changes routine receives a list of strings to query the
 # Gerrit server. It returns an array-ref containing a list of
 # array-refs, each containing a list of change descriptions.
@@ -629,7 +637,7 @@ $Commands{query} = sub {
                 $change->{_number},
                 $change->{status},
                 code_review($change->{labels}{'Code-Review'}),
-                substr($change->{updated}, 0, 19),
+                normalize_date($change->{updated}),
                 $change->{project},
                 $change->{branch},
                 substr($change->{owner}{name}, 0, 24),
@@ -694,8 +702,8 @@ $Commands{show} = sub {
 EOF
 
     for my $date (qw/created updated/) {
-        # Remove trailing zeroes from the dates
-        $change->{$date} =~ s/\.0+$// if exists $change->{$date};
+        $change->{$date} = normalize_date($change->{$date})
+            if exists $change->{$date};
     }
 
     for my $key (qw/project branch topic created updated status reviewed mergeable/) {
