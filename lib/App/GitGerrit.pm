@@ -93,12 +93,6 @@ sub grok_config {
         }
     }
 
-    # Override option defaults
-    foreach my $opt (qw/verbose/) {
-        $Options{$opt} = $config{"default-$opt"}[-1]
-            if exists $config{"default-$opt"};
-    }
-
     unless ($config{baseurl} && $config{project} && $config{remote}) {
         info "Missing required configuration:";
 
