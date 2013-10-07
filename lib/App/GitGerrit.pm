@@ -616,17 +616,27 @@ $Commands{query} = sub {
     my $changes = query_changes(@queries);
 
     my $has_text_table = eval {require Text::Table};
-    state $format = "%-5s %-9s %2s %-19s %-20s %-12s %-24s %s\n";
 
     for (my $i=0; $i < @$changes; ++$i) {
         print "\n[$names[$i]=$queries[$i]]\n";
         next unless @{$changes->[$i]};
-        my $table;
+
+        state $headings = [qw/ID STATUS CR UPDATED PROJECT BRANCH OWNER SUBJECT/];
+        my ($table, $format);
+
         if ($has_text_table) {
-            $table = Text::Table->new(qw/ID STATUS CR UPDATED PROJECT BRANCH OWNER SUBJECT/);
+            $table = Text::Table->new(@$headings);
         } else {
-            printf $format, qw/ID STATUS CR UPDATED PROJECT BRANCH OWNER SUBJECT/;
+            # Find out the largest owner name
+            my $width = length 'OWNER';
+            foreach my $change (@{$changes->[$i]}) {
+                $width = length $change->{owner}{name}
+                    if $width < length $change->{owner}{name};
+            }
+            $format = "%-5s %-9s %2s %-19s %-20s %-12s %-${width}s %s\n";
+            printf $format, @$headings;
         }
+
         foreach my $change (sort {$b->{updated} cmp $a->{updated}} @{$changes->[$i]}) {
             if ($Options{verbose}) {
                 if (my $topic = gerrit(GET => "/changes/$change->{id}/topic")) {
@@ -640,16 +650,16 @@ $Commands{query} = sub {
                 normalize_date($change->{updated}),
                 $change->{project},
                 $change->{branch},
-                substr($change->{owner}{name}, 0, 24),
+                $change->{owner}{name},
                 $change->{subject},
             );
-            if ($table) {
+            if ($has_text_table) {
                 $table->add(@values);
             } else {
                 printf $format, @values;
             }
         }
-        print $table->table() if $table;
+        print $table->table() if $has_text_table;
     }
     print "\n";
 
