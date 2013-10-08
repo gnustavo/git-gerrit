@@ -2,6 +2,27 @@ Revision history for App::GitGerrit. -*- text -*-
 
 {{$NEXT}}
 
+0.013     2013-10-07 23:19:19 America/Sao_Paulo
+
+  [Changes]
+  - Require, instead of just recommend, Text::Table and better format
+    the output of 'git gerrit reviewer'.
+
+  - The reviewer's names are always printed in full now.
+
+  - Reformat the output of 'git gerrit version' when Gerrit is version
+    pre-2.7.
+
+  [Fixes]
+  - Fix 'git gerrit query' to show the correct list of changes in a
+    multi-query invocation.
+
+  - Fix 'git gerrit reviewer' which was aborting when it tried to
+    print the reviewer list.
+
+  - Always strip the trailing zeroes from dates in the output of
+    'query' and 'show'.
+
 0.012     2013-10-06 19:30:36 America/Sao_Paulo
 
   [New features]
