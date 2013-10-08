@@ -942,9 +942,9 @@ $Commands{reviewer} = sub {
     }
 
     # Finally, list current reviewers
-    my @reviewers = gerrit(GET => "/changes/$id/reviewers");
-    print "There are ", scalar(@reviewers), " reviewers currently:\n";
-    foreach my $reviewer (@reviewers) {
+    my $reviewers = gerrit(GET => "/changes/$id/reviewers");
+    print "There are ", scalar(@$reviewers), " reviewers currently:\n";
+    foreach my $reviewer (@$reviewers) {
         print "$reviewer->{name}\t$reviewer->{email}\t";
         foreach my $approval (sort keys %{$reviewer->{approvals}}) {
             print "$approval:$reviewer->{approvals}{$approval}";
