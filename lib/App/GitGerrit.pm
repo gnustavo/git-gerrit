@@ -943,16 +943,14 @@ $Commands{reviewer} = sub {
 
     # Finally, list current reviewers
     my $reviewers = gerrit(GET => "/changes/$id/reviewers");
-    print "There are ", scalar(@$reviewers), " reviewers currently:\n";
-    foreach my $reviewer (@$reviewers) {
-        print "$reviewer->{name}\t$reviewer->{email}\t";
-        foreach my $approval (sort keys %{$reviewer->{approvals}}) {
-            print "$approval:$reviewer->{approvals}{$approval}";
-        } continue {
-            print ", ";
-        }
-        print "\n";
-    }
+
+    require Text::Table;
+    my %labels = map {$_ => undef} map {keys %{$_->{approvals}}} @$reviewers;
+    my @labels = sort keys %labels;
+    my $table = Text::Table->new(REVIEWER => @labels);
+    $table->add($_->{name}, @{$_->{approvals}}{@labels})
+        foreach sort {$a->{name} cmp $b->{name}} @$reviewers;
+    print $table->table();
 
     return;
 };
