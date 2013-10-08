@@ -609,27 +609,12 @@ $Commands{query} = sub {
 
     my $changes = query_changes(@queries);
 
-    my $has_text_table = eval {require Text::Table};
-
     for (my $i=0; $i < @$changes; ++$i) {
-        print "\n[$names[$i]=$queries[$i]]\n";
+        print "[$names[$i]=$queries[$i]]\n";
         next unless @{$changes->[$i]};
 
-        state $headings = [qw/ID STATUS CR UPDATED PROJECT BRANCH OWNER SUBJECT/];
-        my ($table, $format);
-
-        if ($has_text_table) {
-            $table = Text::Table->new(@$headings);
-        } else {
-            # Find out the largest owner name
-            my $width = length 'OWNER';
-            foreach my $change (@{$changes->[$i]}) {
-                $width = length $change->{owner}{name}
-                    if $width < length $change->{owner}{name};
-            }
-            $format = "%-5s %-9s %2s %-19s %-20s %-12s %-${width}s %s\n";
-            printf $format, @$headings;
-        }
+        require Text::Table;
+        my $table = Text::Table->new("ID\n&num", qw/STATUS CR UPDATED PROJECT BRANCH OWNER SUBJECT/);
 
         foreach my $change (sort {$b->{updated} cmp $a->{updated}} @{$changes->[$i]}) {
             if ($Options{verbose}) {
@@ -637,7 +622,7 @@ $Commands{query} = sub {
                     $change->{branch} .= " ($topic)";
                 }
             }
-            my @values = (
+            $table->add(
                 $change->{_number},
                 $change->{status},
                 code_review($change->{labels}{'Code-Review'}),
@@ -647,15 +632,9 @@ $Commands{query} = sub {
                 $change->{owner}{name},
                 $change->{subject},
             );
-            if ($has_text_table) {
-                $table->add(@values);
-            } else {
-                printf $format, @values;
-            }
         }
-        print $table->table() if $has_text_table;
+        print $table->table(), "\n";
     }
-    print "\n";
 
     return;
 };
@@ -729,22 +708,14 @@ EOF
     }
 
     # And now we can output the vote table
-    my $table = eval {require Text::Table}
-        ? Text::Table->new('REVIEWER', map {"$_\n&num"} @labels)
-        : undef;
-
-    printf "%-32s %-s\n", 'REVIEWER', join("\t", @labels)
-        unless $table;
+    require Text::Table;
+    my $table = Text::Table->new('REVIEWER', map {"$_\n&num"} @labels);
 
     foreach my $name (sort keys %reviewers) {
         my @votes = map {$_ > 0 ? "+$_" : $_} map {defined $_ ? $_ : '0'} @{$reviewers{$name}}{@labels};
-        if ($table) {
-            $table->add($name, @votes);
-        } else {
-            printf "%-32s %-s\n", substr($name, 0, 32), join("\t", @votes);
-        }
+        $table->add($name, @votes);
     }
-    print $table->table() if $table;
+    print $table->table(), "\n";
 
     return;
 };
@@ -947,10 +918,10 @@ $Commands{reviewer} = sub {
     require Text::Table;
     my %labels = map {$_ => undef} map {keys %{$_->{approvals}}} @$reviewers;
     my @labels = sort keys %labels;
-    my $table = Text::Table->new(REVIEWER => @labels);
+    my $table = Text::Table->new('REVIEWER', map {"$_\n&num"} @labels);
     $table->add($_->{name}, @{$_->{approvals}}{@labels})
         foreach sort {$a->{name} cmp $b->{name}} @$reviewers;
-    print $table->table();
+    print $table->table(), "\n";
 
     return;
 };
