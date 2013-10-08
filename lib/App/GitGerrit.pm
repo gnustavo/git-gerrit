@@ -124,9 +124,6 @@ EOF
     $config{baseurl}[-1] =~ s:/+$::; # trim trailing slashes from the baseurl
     $config{baseurl}[-1] = URI->new($config{baseurl}[-1]);
 
-    chomp(my $gitdir = qx/git rev-parse --git-dir/);
-    push @{$config{gitdir}}, $gitdir;
-
     return \%config;
 }
 
@@ -156,12 +153,14 @@ sub config {
 sub install_commit_msg_hook {
     require File::Spec;
 
+    chomp(my $git_dir = qx/git rev-parse --git-dir/);
+
     # Do nothing if it already exists
-    my $commit_msg = File::Spec->catfile(scalar(config('gitdir')), 'hooks', 'commit-msg');
+    my $commit_msg = File::Spec->catfile($git_dir, 'hooks', 'commit-msg');
     return if -e $commit_msg;
 
     # Otherwise, check if we need to mkdir the hooks directory
-    my $hooks_dir = File::Spec->catdir(scalar(config('gitdir')), 'hooks');
+    my $hooks_dir = File::Spec->catdir($git_dir, 'hooks');
     mkdir $hooks_dir unless -e $hooks_dir;
 
     # Try to download and install the hook.
