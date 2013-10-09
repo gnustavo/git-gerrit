@@ -803,7 +803,7 @@ $Commands{push} = sub {
     $Options{rebase} = '';      # false by default
     get_options(
         'keep',
-        'force',
+        'force+',
         'rebase!',
         'draft',
         'topic=s',
@@ -813,19 +813,23 @@ $Commands{push} = sub {
         'cc=s@'
     );
 
-    qx/git status --porcelain --untracked-files=no/ eq ''
-        or error "push: Can't push change because git-status is dirty";
-
     my $branch = current_branch;
 
     my ($upstream, $id) = change_branch_info($branch)
         or error "push: You aren't in a change branch. I cannot push it.";
 
+    qx/git status --porcelain --untracked-files=no/ eq ''
+        or $Options{force}--
+            or error <<EOF;
+push: Can't push change because git-status is dirty.
+      If this is really what you want to do, please try again with --force.
+EOF
+
     my @commits = qx/git log --decorate=no --oneline HEAD ^$upstream/;
     if (@commits == 0) {
         error "push: no changes between $upstream and $branch. Pushing would be pointless.";
-    } elsif (@commits > 1 && ! $Options{force}) {
-        error <<EOF;
+    } elsif (@commits > 1) {
+        error <<EOF unless $Options{force}--;
 push: you have more than one commit that you are about to push.
       The outstanding commits are:
 

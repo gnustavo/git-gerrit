@@ -430,15 +430,19 @@ delete the change-branch, keeping your working area intact.
 
 =item B<--force>
 
-By default, git-gerrit refuses to push a change-branch if it contains
-more than one commit dangling from its upstream. It's best to avoid
-multiple commit pushes, because if you have to amend them later,
-having multiple commits may require rebasing dependent commits, which
-is a more complex operation and clutters the review history of the
-change.
+By default, git-gerrit refuses to push a change-branch unless it
+contains a single commit dangling from its upstream and git status is
+clean (i.e., C<git status --untracked-files=no> doesn't show any
+modification that hasn't been added to the index). If either one of
+these conditions don't hold it dies with an error message telling
+what's the problem. If you're sure you want to push anyway, you can
+use this option. If both conditions don't hold, you'll have to use the
+option twice.
 
-This option makes git-gerrit perform multiple commit pushes without
-complaining.
+It's best to avoid multiple commit pushes, because if you have to
+amend them later, having multiple commits may require rebasing
+dependent commits, which is a more complex operation and clutters the
+review history of the change.
 
 =item B<--[no]rebase>
 
