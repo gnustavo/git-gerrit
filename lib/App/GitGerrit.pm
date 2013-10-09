@@ -166,9 +166,9 @@ sub install_commit_msg_hook {
     # Try to download and install the hook.
     eval { require LWP::Simple };
     if ($@) {
-        info "Cannot install commit_msg hook because you don't have LWP::Simple installed";
+        info "Cannot install $commit_msg hook because you don't have LWP::Simple installed";
     } else {
-        info "Installing commit_msg hook";
+        info "Installing $commit_msg hook";
         if (LWP::Simple::is_success(LWP::Simple::getstore(config('baseurl') . "/tools/hooks/commit-msg", $commit_msg))) {
             chmod 0755, $commit_msg;
         }
