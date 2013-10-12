@@ -97,7 +97,7 @@ sub grok_config {
 
     $config{'git-gerrit'}{remote} //= ['origin'];
 
-    sub remote_url {
+    my $remote_url = sub {
         my ($config) = @_;
         state $url;
         unless ($url) {
@@ -107,17 +107,17 @@ sub grok_config {
             $url = URI->new($url);
         }
         return $url;
-    }
+    };
 
     unless ($config{'git-gerrit'}{baseurl}) {
-        my $url = remote_url(\%config);
+        my $url = $remote_url->(\%config);
         $config{'git-gerrit'}{baseurl} = [sprintf '%s://%s', $url->scheme, $url->authority];
     }
     $config{'git-gerrit'}{baseurl}[-1] =~ s:/+$::; # strip trailing slashes
 
     unless ($config{'git-gerrit'}{project}) {
         my $prefix = URI->new($config{'git-gerrit'}{baseurl}[-1])->path;
-        my $path   = remote_url(\%config)->path;
+        my $path   = $remote_url->(\%config)->path;
         if (length $prefix) {
             $prefix eq substr($path, 0, length($prefix))
                 or error <<EOF;
