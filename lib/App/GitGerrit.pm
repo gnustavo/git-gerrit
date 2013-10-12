@@ -230,7 +230,7 @@ sub get_credentials {
     my ($fh, $credfile) = credential_description_file($baseurl);
 
     my %credentials;
-    debug "Try to get credentials from git-credential";
+    debug "Get credentials from git-credential";
     open my $pipe, '-|', "git credential fill <$credfile"
         or error "Can't open pipe to git-credential: $!";
     while (<$pipe>) {
@@ -250,12 +250,12 @@ sub get_credentials {
     my ($username, $password) = @credentials{qw/username password/};
 
     unless (defined $username && defined $password) {
-        debug "Try to get credentials from git-gerrit.baseurl";
+        debug "Get credentials from git-gerrit.baseurl";
         ($username, $password) = url_userinfo(scalar(config('baseurl')));
     }
 
     unless (defined $username && defined $password) {
-        debug "Try to get credentials from a .netrc file";
+        debug "Get credentials from a .netrc file";
         if (eval {require Net::Netrc}) {
             if (my $mach = Net::Netrc->lookup(URI->new(config('baseurl'))->host, $username)) {
                 ($username, $password) = ($mach->login, $mach->password);
@@ -340,9 +340,15 @@ sub gerrit {
         require Gerrit::REST;
         $gerrit = Gerrit::REST->new(scalar(config('baseurl')), $username, $password);
         eval { $gerrit->GET("/projects/" . uri_escape_utf8(config('project'))) };
-        if ($@) {
+        if (my $error = $@) {
+            if ($error->{code} == 401) {
+                error "Gerrit rejected the authentication credentials";
+            } elsif ($error->{code} == 403) {
+                error "Cannot connect to Gerrit at " . scalar(config('baseurl'));
+            } else {
+                error "Error connecting to Gerrit:\n" . $error->as_text;
+            }
             set_credentials($username, $password, 'reject');
-            error $@;
         } else {
             set_credentials($username, $password, 'approve');
         }
@@ -358,6 +364,17 @@ sub gerrit {
     }
 
     return $gerrit->$method(@_);
+}
+
+# The gerrit_or_die routine relays its arguments to the gerrit routine
+# but catches any exception and dies with a formatted message. It
+# should be called instead of gerrit whenever the caller doesn't want
+# to treat exceptions.
+
+sub gerrit_or_die {
+    my $result = eval { gerrit(@_) };
+    die $@->as_text if $@;
+    return $result;
 }
 
 # The normalize_date routine removes the trailing zeroes from a $date.
@@ -388,7 +405,7 @@ sub query_changes {
 
     push @queries, "o=LABELS";
 
-    my $changes = gerrit(GET => "/changes/?" . join('&', @queries));
+    my $changes = gerrit_or_die(GET => "/changes/?" . join('&', @queries));
     $changes = [$changes] if ref $changes->[0] eq 'HASH';
 
     return $changes;
@@ -403,7 +420,7 @@ sub get_change {
     my ($id, $allrevs) = @_;
 
     my $revs = $allrevs ? 'ALL_REVISIONS' : 'CURRENT_REVISION';
-    return (gerrit(GET => "/changes/?q=change:$id&o=$revs"))[0][0];
+    return (gerrit_or_die(GET => "/changes/?q=change:$id&o=$revs"))[0][0];
 }
 
 # The current_branch routine returns the name of the current branch or
@@ -626,7 +643,7 @@ $Commands{query} = sub {
 
         foreach my $change (sort {$b->{updated} cmp $a->{updated}} @{$changes->[$i]}) {
             if ($Options{verbose}) {
-                if (my $topic = gerrit(GET => "/changes/$change->{id}/topic")) {
+                if (my $topic = gerrit_or_die(GET => "/changes/$change->{id}/topic")) {
                     $change->{branch} .= " ($topic)";
                 }
             }
@@ -683,7 +700,7 @@ $Commands{show} = sub {
     my $id = shift @ARGV || current_change_id()
         or syntax_error "show: Missing CHANGE.";
 
-    my $change = gerrit(GET => "/changes/$id/detail");
+    my $change = gerrit_or_die(GET => "/changes/$id/detail");
 
     print <<EOF;
  Change-Num: $change->{_number}
@@ -922,7 +939,7 @@ $Commands{reviewer} = sub {
     # First try to make all deletions
     if (my $users = $Options{delete}) {
         foreach my $user (split(/,/, join(',', @$users))) {
-            gerrit(DELETE => "/changes/$id/reviewers/$user");
+            gerrit_or_die(DELETE => "/changes/$id/reviewers/$user");
         }
     }
 
@@ -930,12 +947,12 @@ $Commands{reviewer} = sub {
     if (my $users = $Options{add}) {
         my $confirm = $Options{confirm} ? 'true' : 'false';
         foreach my $user (split(/,/, join(',', @$users))) {
-            gerrit(POST => "/changes/$id/reviewers", { reviewer => $user, confirm => $confirm});
+            gerrit_or_die(POST => "/changes/$id/reviewers", { reviewer => $user, confirm => $confirm});
         }
     }
 
     # Finally, list current reviewers
-    my $reviewers = gerrit(GET => "/changes/$id/reviewers");
+    my $reviewers = gerrit_or_die(GET => "/changes/$id/reviewers");
 
     require Text::Table;
     my %labels = map {$_ => undef} map {keys %{$_->{approvals}}} @$reviewers;
@@ -974,14 +991,14 @@ $Commands{review} = sub {
         unless keys %review;
 
     if (my $id = shift @ARGV) {
-        gerrit(POST => "/changes/$id/revisions/current/review", \%review);
+        gerrit_or_die(POST => "/changes/$id/revisions/current/review", \%review);
     } else {
         my $branch = current_branch;
 
         my ($upstream, $id) = change_branch_info($branch)
             or error "review: Missing CHANGE.";
 
-        gerrit(POST => "/changes/$id/revisions/current/review", \%review);
+        gerrit_or_die(POST => "/changes/$id/revisions/current/review", \%review);
 
         unless ($Options{keep}) {
             cmd "git checkout $upstream" and cmd "git branch -D $branch";
@@ -1004,14 +1021,14 @@ $Commands{abandon} = sub {
     }
 
     if (my $id = shift @ARGV) {
-        gerrit(POST => "/changes/$id/abandon", @args);
+        gerrit_or_die(POST => "/changes/$id/abandon", @args);
     } else {
         my $branch = current_branch;
 
         my ($upstream, $id) = change_branch_info($branch)
             or error "abandon: Missing CHANGE.";
 
-        gerrit(POST => "/changes/$id/abandon", @args);
+        gerrit_or_die(POST => "/changes/$id/abandon", @args);
 
         unless ($Options{keep}) {
             cmd "git checkout $upstream" and cmd "git branch -D $branch";
@@ -1033,7 +1050,7 @@ $Commands{restore} = sub {
         push @args, { message => $message };
     }
 
-    gerrit(POST => @args);
+    gerrit_or_die(POST => @args);
 
     return;
 };
@@ -1050,7 +1067,7 @@ $Commands{revert} = sub {
         push @args, { message => $message };
     }
 
-    gerrit(POST => @args);
+    gerrit_or_die(POST => @args);
 
     return;
 };
@@ -1065,14 +1082,14 @@ $Commands{submit} = sub {
     push @args, { wait_for_merge => 'true' } unless $Options{'no-wait-for-merge'};
 
     if (my $id = shift @ARGV) {
-        gerrit(POST => "/changes/$id/submit", @args);
+        gerrit_or_die(POST => "/changes/$id/submit", @args);
     } else {
         my $branch = current_branch;
 
         my ($upstream, $id) = change_branch_info($branch)
             or error "submit: Missing CHANGE.";
 
-        gerrit(POST => "/changes/$id/submit", @args);
+        gerrit_or_die(POST => "/changes/$id/submit", @args);
 
         unless ($Options{keep}) {
             cmd "git checkout $upstream" and cmd "git branch -D $branch";
