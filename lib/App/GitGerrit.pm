@@ -81,48 +81,57 @@ sub cmd {
 sub grok_config {
     my %config;
 
-    debug "git config --get-regexp \"^git-gerrit\\.\"";
+    debug "git config --list";
     {
-        open my $pipe, '-|', 'git config --get-regexp "^git-gerrit\."';
+        open my $pipe, '-|', 'git config --list';
         while (<$pipe>) {
-            if (/^git-gerrit\.(\S+)\s+(.*)/) {
-                push @{$config{$1}}, $2;
+            if (/^(.+?)\.(\S+)=(.*)/) {
+                push @{$config{$1}{$2}}, $3;
             } else {
                 info "Strange git-config output: $_";
             }
         }
     }
 
-    unless ($config{baseurl} && $config{project} && $config{remote}) {
-        info "Missing required configuration:";
+    # Now we must assume some configuration by default
 
-        warn <<EOF unless $config{baseurl};
+    $config{'git-gerrit'}{remote} //= ['origin'];
 
-Set your Gerrit server base URL like this. Omit --global if you only
-want to configure it for this particular repository.
-
-    git config --global git-gerrit.baseurl "https://your.gerrit.domain"
-EOF
-
-        warn <<EOF unless $config{project};
-
-Set the Gerrit project associated with your repository like this.
-
-    git config git-gerrit.project "project/name"
-EOF
-
-        warn <<EOF unless $config{remote};
-
-Set the git remote pointing to the Gerrit project like this.
-
-    git config git-gerrit.remote "remote"
-EOF
-
-        die "\n\n";
+    sub remote_url {
+        my ($config) = @_;
+        state $url;
+        unless ($url) {
+            my $remote = $config->{'git-gerrit'}{remote}[-1];
+            $url = $config->{remote}{"$remote.url"}[-1]
+                or error "The remote '$remote' isn't configured because there's no remote.$remote.url configuration";
+            $url = URI->new($url);
+        }
+        return $url;
     }
 
-    $config{baseurl}[-1] =~ s:/+$::; # trim trailing slashes from the baseurl
-    $config{baseurl}[-1] = URI->new($config{baseurl}[-1]);
+    unless ($config{'git-gerrit'}{baseurl}) {
+        my $url = remote_url(\%config);
+        $config{'git-gerrit'}{baseurl} = [sprintf '%s://%s', $url->scheme, $url->authority];
+    }
+    $config{'git-gerrit'}{baseurl}[-1] =~ s:/+$::; # strip trailing slashes
+
+    unless ($config{'git-gerrit'}{project}) {
+        my $prefix = URI->new($config{'git-gerrit'}{baseurl}[-1])->path;
+        my $path   = remote_url(\%config)->path;
+        if (length $prefix) {
+            $prefix eq substr($path, 0, length($prefix))
+                or error <<EOF;
+I can't grok git-gerrit.project because git-gerrit.baseurl's path
+doesn't match git-gerrit.remote's path:
+
+* baseurl: 
+EOF
+            $config{'git-gerrit'}{project} = [substr($path, length($prefix))];
+        } else {
+            $config{'git-gerrit'}{project} = [$path];
+        }
+    }
+    $config{'git-gerrit'}{project}[-1] =~ s:^/+::; # strip leading slashes
 
     return \%config;
 }
@@ -138,9 +147,9 @@ sub config {
     my ($var) = @_;
     state $config = grok_config;
     if (wantarray) {
-        return exists $config->{$var} ? @{$config->{$var}}  : ();
+        return exists $config->{'git-gerrit'}{$var} ? @{$config->{'git-gerrit'}{$var}}  : ();
     } else {
-        return exists $config->{$var} ? $config->{$var}[-1] : undef;
+        return exists $config->{'git-gerrit'}{$var} ? $config->{'git-gerrit'}{$var}[-1] : undef;
     }
 }
 
@@ -189,9 +198,7 @@ sub url_userinfo {
 }
 
 sub credential_description_file {
-    my ($password) = @_;
-
-    my $baseurl = config('baseurl');
+    my ($baseurl, $password) = @_;
 
     my %credential = (
         protocol => $baseurl->scheme,
@@ -219,7 +226,8 @@ sub credential_description_file {
 
 my $git_credential_supported = 1;
 sub get_credentials {
-    my ($fh, $credfile) = credential_description_file;
+    my $baseurl = URI->new(scalar(config('baseurl')));
+    my ($fh, $credfile) = credential_description_file($baseurl);
 
     my %credentials;
     debug "Try to get credentials from git-credential";
@@ -249,7 +257,7 @@ sub get_credentials {
     unless (defined $username && defined $password) {
         debug "Try to get credentials from a .netrc file";
         if (eval {require Net::Netrc}) {
-            if (my $mach = Net::Netrc->lookup(config('baseurl')->host, $username)) {
+            if (my $mach = Net::Netrc->lookup(URI->new(config('baseurl'))->host, $username)) {
                 ($username, $password) = ($mach->login, $mach->password);
             }
         } else {
@@ -282,7 +290,8 @@ sub set_credentials {
     $what =~ /^(?:approve|reject)$/
         or error "set_credentials \$what argument ($what) must be either 'approve' or 'reject'";
 
-    my ($fh, $credfile) = credential_description_file($password);
+    my $baseurl = URI->new(scalar(config('baseurl')));
+    my ($fh, $credfile) = credential_description_file($baseurl, $password);
 
     return system("git credential $what <$credfile") == 0;
 }
@@ -329,7 +338,7 @@ sub gerrit {
     unless ($gerrit) {
         my ($username, $password) = get_credentials;
         require Gerrit::REST;
-        $gerrit = Gerrit::REST->new(config('baseurl')->as_string, $username, $password);
+        $gerrit = Gerrit::REST->new(scalar(config('baseurl')), $username, $password);
         eval { $gerrit->GET("/projects/" . uri_escape_utf8(config('project'))) };
         if ($@) {
             set_credentials($username, $password, 'reject');
@@ -720,7 +729,17 @@ EOF
 };
 
 $Commands{config} = sub {
-    cmd "git config --get-regexp \"^git-gerrit\\.\"";
+    my $config = grok_config;
+    my $git_gerrit = $config->{'git-gerrit'}
+        or return;
+    require Text::Table;
+    my $table = Text::Table->new();
+    foreach my $var (sort keys %$git_gerrit) {
+        foreach my $value (@{$git_gerrit->{$var}}) {
+            $table->add("git-gerrit.$var", $value);
+        }
+    }
+    print $table->table(), "\n";
 
     return;
 };

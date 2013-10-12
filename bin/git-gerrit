@@ -143,31 +143,98 @@ Strawberry Perl. Your mileage may vary, though.
 
 =head1 CONFIGURATION
 
-You must tell git-gerrit how to interact with your Gerrit server by
-defining a few configuration variables in Git's C<git-gerrit>
-configuration section. All these variables are required. If
-they aren't set, git-gerrit will provide a helpful message telling
-you how to set them up.
+Git-gerrit is configured through Git's standard configuration
+framework, which you can read about with the C<git help config>
+command. All git-gerrit's configuration variables are in the
+C<git-gerrit> section and can be created at the C<system>, the
+C<global>, or the C<local> level. More specifically, git-gerrit groks
+its configuration from the output of the C<git config -l> command.
+
+=head2 Required configuration
+
+In order to interact with Gerrit, git-gerrit has to know three things
+which it can usually infer from your default Git configuration, but
+that you may be explicit about using these Git configuration
+variables:
 
 =over
 
+=item * B<git-gerrit.remote>
+
+Whenever git-gerrit invokes a Git command to interact with Gerrit
+(e.g., git-push and git-fetch) it refers to Gerrit using a remote
+name. You probably already have a remote configured for Gerrit. If you
+don't, git-gerrit assumes the name C<origin> by default.
+
+You can check your Git remotes by issuing the command C<git remote
+-v>. Note that the remote's URL must use the HTTP or (better yet)
+HTTPS protocol, not SSH.
+
 =item * B<git-gerrit.baseurl>
 
-The base URL of your Gerrit server. This usually can be configured
-globally, if you have a Gerrit server hosting several of your
-repositories. It's a good idea to insert your username into this URL
-to avoid being asked for it interactively.
+This is the value of the
+L<gerrit.canonicalWebUrl|https://gerrit-review.googlesource.com/Documentation/config-gerrit.html#_a_id_gerrit_a_section_gerrit>
+variable configured in the C<etc/gerrit.config> file at Gerrit's
+server. It's needed so that git-gerrit can interact with Gerrit's REST
+API.
+
+If you don't specify it, git-gerrit assumes that it is equal to the
+remote's URL minus the path.
+
+This usually can be configured globally, if you have a Gerrit server
+hosting several of your repositories.
+
+It's a good idea to have your username in this URL to avoid being
+asked for it interactively.
 
 =item * B<git-gerrit.project>
 
-The project name associated with your repository.
+This is the name of the project associated with the Gerrit
+repository. It's needed so that git-gerrit can interact with Gerrit's
+REST API.
 
-=item * B<git-gerrit.remote>
-
-The Git remote name you use to push commits to and fetch commits from
-your Gerrit server.
+If you don't specify it, git-gerrit assumes that it is equal to the
+path of the remote's URL stripped of any path in
+C<git-gerrit.baseurl>.
 
 =back
+
+This is designed so that for most Gerrit instances git-gerrit should
+work out of the box, without any explicit configuration.
+
+For example, if you're working on Android's
+L<kernel/common|https://android-review.googlesource.com/#/admin/projects/kernel/common>
+project, you may clone it with the suggested command:
+
+    git clone https://android.googlesource.com/kernel/common
+
+Then, git-gerrit will figure this out from the clone URL:
+
+=over
+
+=item git-gerrit.remote = origin
+
+=item git-gerrit.baseurl = https://android.googlesource.com
+
+=item git-gerrit.project = kernel/common
+
+=back
+
+If you're working on Eclipse's
+L<egit/egit|https://git.eclipse.org/r/#/admin/projects/egit/egit>
+project, however, you must help git-gerrit figuring its
+configuration. This is the suggested command to clone it:
+
+    git clone https://git.eclipse.org/r/egit/egit
+
+Note that the base URL has a path part (C</r>). So, in this case you
+must configure it explicitly like this:
+
+    git config --global git-gerrit.baseurl https://git.eclipse.org/r
+
+The remote and the project names can be inferred automatically.
+
+=head2 Optional configuration
 
 The following configuration variables may be used to change
 git-gerrit's default operation.
@@ -800,9 +867,9 @@ invocation.
 =head2 git gerrit config
 
 The B<config> sub-command lists Git's configuration variables in the
-C<git-gerrit> section. It's just a shortcut to
-
-    git config --get-regexp "^git-gerrit\."
+C<git-gerrit> section. The variables C<remote>, C<baseurl>, and
+C<project> are always shown, even if they're inferred and not
+explicitly configured.
 
 =head2 git gerrit version
 
