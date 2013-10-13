@@ -79,61 +79,62 @@ sub cmd {
 # values.
 
 sub grok_config {
-    my %config;
+    state $config;
 
-    debug "git config --list";
-    {
-        open my $pipe, '-|', 'git config --list';
-        while (<$pipe>) {
-            if (/^(.+?)\.(\S+)=(.*)/) {
-                push @{$config{$1}{$2}}, $3;
-            } else {
-                info "Strange git-config output: $_";
+    unless ($config) {
+        debug "git config --list";
+        {
+            open my $pipe, '-|', 'git config --list';
+            while (<$pipe>) {
+                if (/^(.+?)\.(\S+)=(.*)/) {
+                    push @{$config->{$1}{$2}}, $3;
+                } else {
+                    info "Strange git-config output: $_";
+                }
             }
         }
-    }
 
-    # Now we must assume some configuration by default
+        # Now we must assume some configuration by default
 
-    $config{'git-gerrit'}{remote} //= ['origin'];
+        $config->{'git-gerrit'}{remote} //= ['origin'];
 
-    my $remote_url = sub {
-        my ($config) = @_;
-        state $url;
-        unless ($url) {
-            my $remote = $config->{'git-gerrit'}{remote}[-1];
-            $url = $config->{remote}{"$remote.url"}[-1]
-                or error "The remote '$remote' isn't configured because there's no remote.$remote.url configuration";
-            $url = URI->new($url);
+        my $remote_url = sub {
+            state $url;
+            unless ($url) {
+                my $remote = $config->{'git-gerrit'}{remote}[-1];
+                $url = $config->{remote}{"$remote.url"}[-1]
+                    or error "The remote '$remote' isn't configured because there's no remote.$remote.url configuration";
+                $url = URI->new($url);
+            }
+            return $url;
+        };
+
+        unless ($config->{'git-gerrit'}{baseurl}) {
+            my $url = $remote_url->();
+            $config->{'git-gerrit'}{baseurl} = [$url->scheme . '://' . $url->authority];
         }
-        return $url;
-    };
+        $config->{'git-gerrit'}{baseurl}[-1] =~ s:/+$::; # strip trailing slashes
 
-    unless ($config{'git-gerrit'}{baseurl}) {
-        my $url = $remote_url->(\%config);
-        $config{'git-gerrit'}{baseurl} = [sprintf '%s://%s', $url->scheme, $url->authority];
-    }
-    $config{'git-gerrit'}{baseurl}[-1] =~ s:/+$::; # strip trailing slashes
-
-    unless ($config{'git-gerrit'}{project}) {
-        my $prefix = URI->new($config{'git-gerrit'}{baseurl}[-1])->path;
-        my $path   = $remote_url->(\%config)->path;
-        if (length $prefix) {
-            $prefix eq substr($path, 0, length($prefix))
-                or error <<EOF;
+        unless ($config->{'git-gerrit'}{project}) {
+            my $prefix = URI->new($config->{'git-gerrit'}{baseurl}[-1])->path;
+            my $path   = $remote_url->()->path;
+            if (length $prefix) {
+                $prefix eq substr($path, 0, length($prefix))
+                    or error <<EOF;
 I can't grok git-gerrit.project because git-gerrit.baseurl's path
 doesn't match git-gerrit.remote's path:
 
 * baseurl: 
 EOF
-            $config{'git-gerrit'}{project} = [substr($path, length($prefix))];
-        } else {
-            $config{'git-gerrit'}{project} = [$path];
+                $config->{'git-gerrit'}{project} = [substr($path, length($prefix))];
+            } else {
+                $config->{'git-gerrit'}{project} = [$path];
+            }
         }
+        $config->{'git-gerrit'}{project}[-1] =~ s:^/+::; # strip leading slashes
     }
-    $config{'git-gerrit'}{project}[-1] =~ s:^/+::; # strip leading slashes
 
-    return \%config;
+    return $config;
 }
 
 # The config routine returns the value(s) associated with Git's
