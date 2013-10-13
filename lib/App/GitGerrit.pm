@@ -943,6 +943,7 @@ $Commands{reviewer} = sub {
     # First try to make all deletions
     if (my $users = $Options{delete}) {
         foreach my $user (split(/,/, join(',', @$users))) {
+            $user = uri_escape_utf8($user);
             gerrit_or_die(DELETE => "/changes/$id/reviewers/$user");
         }
     }
