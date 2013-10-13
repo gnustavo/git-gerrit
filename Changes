@@ -2,6 +2,27 @@ Revision history for App::GitGerrit. -*- text -*-
 
 {{$NEXT}}
 
+0.014     2013-10-12 22:03:10 America/Sao_Paulo
+
+  [New features]
+  - The configuration variables ('remote', 'baseurl', and 'project')
+    now have suitable defaults which should allow most users to start
+    using git-gerrit out of the box, without any pre-configuration
+    required.
+
+  - You can --force a 'git gerrit push' to succeed when the working
+    area is dirty.
+
+  [Changes]
+  - Gerrit error messages are now formatted in a way that make them
+    more understandable.
+
+  - The full path of the commit-msg hook being installed is shown in
+    the debug messages.
+
+  [Fixes]
+  - Usernames are now URI-escaped before being inserted in REST URLs.
+
 0.013     2013-10-07 23:19:19 America/Sao_Paulo
 
   [Changes]
