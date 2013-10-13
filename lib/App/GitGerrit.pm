@@ -137,21 +137,24 @@ EOF
     return $config;
 }
 
-# The config routine returns the value(s) associated with Git's
-# git-gerrit.$var configuration variable. In list context it returns
-# the list of all values or the empty list if the variable isn't
-# defined. In scalar context it returns the variables last set value
-# (as output by the 'git config -l' command) or undef if the variable
-# isn't defined.
+# The config routine returns the last value associated with Git's
+# git-gerrit.$var configuration variable, as output by the 'git config
+# -l' command, or undef if the variable isn't defined.
 
 sub config {
     my ($var) = @_;
     state $config = grok_config;
-    if (wantarray) {
-        return exists $config->{'git-gerrit'}{$var} ? @{$config->{'git-gerrit'}{$var}}  : ();
-    } else {
-        return exists $config->{'git-gerrit'}{$var} ? $config->{'git-gerrit'}{$var}[-1] : undef;
-    }
+    return exists $config->{'git-gerrit'}{$var} ? $config->{'git-gerrit'}{$var}[-1] : undef;
+}
+
+# The configs routine returns all values associated with Git's
+# git-gerrit.$var configuration variable or the empty list if the
+# variable isn't defined.
+
+sub configs {
+    my ($var) = @_;
+    state $config = grok_config;
+    return exists $config->{'git-gerrit'}{$var} ? @{$config->{'git-gerrit'}{$var}}  : ();
 }
 
 # The install_commit_msg_hook routine is invoked by a few of
@@ -227,7 +230,7 @@ sub credential_description_file {
 
 my $git_credential_supported = 1;
 sub get_credentials {
-    my $baseurl = URI->new(scalar(config('baseurl')));
+    my $baseurl = URI->new(config('baseurl'));
     my ($fh, $credfile) = credential_description_file($baseurl);
 
     my %credentials;
@@ -252,7 +255,7 @@ sub get_credentials {
 
     unless (defined $username && defined $password) {
         debug "Get credentials from git-gerrit.baseurl";
-        ($username, $password) = url_userinfo(scalar(config('baseurl')));
+        ($username, $password) = url_userinfo(config('baseurl'));
     }
 
     unless (defined $username && defined $password) {
@@ -291,7 +294,7 @@ sub set_credentials {
     $what =~ /^(?:approve|reject)$/
         or error "set_credentials \$what argument ($what) must be either 'approve' or 'reject'";
 
-    my $baseurl = URI->new(scalar(config('baseurl')));
+    my $baseurl = URI->new(config('baseurl'));
     my ($fh, $credfile) = credential_description_file($baseurl, $password);
 
     return system("git credential $what <$credfile") == 0;
@@ -339,13 +342,13 @@ sub gerrit {
     unless ($gerrit) {
         my ($username, $password) = get_credentials;
         require Gerrit::REST;
-        $gerrit = Gerrit::REST->new(scalar(config('baseurl')), $username, $password);
+        $gerrit = Gerrit::REST->new(config('baseurl'), $username, $password);
         eval { $gerrit->GET("/projects/" . uri_escape_utf8(config('project'))) };
         if (my $error = $@) {
             if ($error->{code} == 401) {
                 error "Gerrit rejected the authentication credentials";
             } elsif ($error->{code} == 403) {
-                error "Cannot connect to Gerrit at " . scalar(config('baseurl'));
+                error "Cannot connect to Gerrit at " . config('baseurl');
             } else {
                 error "Error connecting to Gerrit:\n" . $error->as_text;
             }
@@ -523,7 +526,7 @@ sub auto_reviewers {
     my @reviewers;
 
   REVIEWERS:
-    foreach my $spec (config('reviewers')) {
+    foreach my $spec (configs('reviewers')) {
         if (my ($users, @conditions) = split ' ', $spec) {
             if (@conditions) {
               CONDITION:
