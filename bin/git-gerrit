@@ -150,7 +150,7 @@ C<git-gerrit> section and can be created at the C<system>, the
 C<global>, or the C<local> level. More specifically, git-gerrit groks
 its configuration from the output of the C<git config -l> command.
 
-=head2 Required configuration
+=head2 Git and Gerrit access
 
 In order to interact with Gerrit, git-gerrit has to know three things
 which it can usually infer from your default Git configuration, but
@@ -234,10 +234,40 @@ must configure it explicitly like this:
 
 The remote and the project names can be inferred automatically.
 
-=head2 Optional configuration
+=head2 Option defaults
 
-The following configuration variables may be used to change
-git-gerrit's default operation.
+Each git-gerrit sub-command accept a specific set of options and each
+option has a default value which is specified in the sub-commands
+documentation. You can specify a default set of options for each
+sub-command by defining a variable like this:
+
+=over
+
+=item * B<options.COMMAND> OPTIONS
+
+OPTIONS is the option list that should be passed as default for
+COMMAND. Specifically, it's a string which is split on spaces and the
+resulting list is unshifted on @ARGV, so that it's like you have
+passed these options on the command line first.
+
+So, for example, if you'd like to always update the upstream branch
+when you create a new change-branch, you can pass the C<--update>
+option to C<new> by default by setting this:
+
+    git config git-gerrit.options.new --update
+
+Options common to all commands can be specified to the pseudo-command
+'all' like this:
+
+    git config git-gerrit.options.all --debug
+
+=back
+
+=head2 Automatic reviewers
+
+You can tell git-gerrit to invite automatically some users to review
+your pushed changes based on their upstream branch name and on the
+files affected.
 
 =over
 

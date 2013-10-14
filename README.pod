@@ -103,14 +103,6 @@ does on its web interface.
 
 =item * Allow a list of changes as arguments for most commands
 
-=item * Let the user set defaults for options in configuration variables
-
-Something like this:
-
-    git-gerrit.option.push.keep   1
-    git-gerrit.option.push.rebase 0
-    git-gerrit.option.ALL.debug   1
-
 =back
 
 =head1 COPYRIGHT

@@ -32,6 +32,11 @@ use URI::Escape;
 use Exporter 'import';
 our @EXPORT_OK = qw/run/;
 
+# The $Command variable holds the name of the git-gerrit sub-command
+# that's been invoked. It's defined in the 'run' routine below.
+
+my $Command;
+
 # The %Options hash is used to hold the command line options passed to
 # all git-gerrit subcommands. The --debug option is common to all of
 # them. Each subcommand supports a specific set of options which are
@@ -61,6 +66,15 @@ sub syntax_error {
 
 sub get_options {
     my (@opt_specs) = @_;
+
+    # Get defaults from configuration
+    foreach my $cmd ($Command, 'all') {
+        if (my $options = config("options.$cmd")) {
+            debug "$cmd: unshift default options: $options";
+            unshift @ARGV, split(' ', $options);
+        }
+    }
+
     GetOptions(\%Options, 'debug', 'help', @opt_specs) or pod2usage(2);
     pod2usage({-exitval => 1, -verbose => 2}) if $Options{help};
 }
@@ -1118,13 +1132,13 @@ $Commands{version} = sub {
 # MAIN
 
 sub run {
-    my $command = shift @ARGV
+    $Command = shift @ARGV
         or syntax_error "Missing command name.";
 
-    exists $Commands{$command}
-        or syntax_error "Invalid command: $command.";
+    exists $Commands{$Command}
+        or syntax_error "Invalid command: $Command.";
 
-    $Commands{$command}->();
+    $Commands{$Command}->();
 
     return 0;
 }
