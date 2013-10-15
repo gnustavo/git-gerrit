@@ -328,21 +328,31 @@ sub get_message {
 
     require File::Temp;
     my $tmp = File::Temp->new();
+    my $filename = $tmp->filename;
 
-    require File::Slurp;
-    File::Slurp::write_file($tmp->filename, <<'EOF');
+    {
+        open my $fh, '>', $filename
+            or error "Can't open file for writing ($filename): $!\n";
+        print $fh <<'EOF';
 
 # Please enter the review message for this change. Lines starting
 # with '#' will be ignored, and an empty message aborts the review.
 EOF
+        close $fh;
+    }
 
-    cmd "$editor $tmp"
-        or error "Aborting because I couldn't invoke '$editor $tmp'.";
+    cmd "$editor $filename"
+        or error "Aborting because I couldn't invoke '$editor $filename'.";
 
-    my $message = File::Slurp::read_file($tmp->filename);
-
+    my $message;
+    {
+        open my $fh, '<', $filename
+            or error "Can't open file for reading ($filename): $!\n";
+        local $/ = undef;       # slurp mode
+        $message = <$fh>;
+        close $fh;
+    }
     $message =~ s/(?<=\n)#.*?\n//gs; # remove all lines starting with '#'
-
     return $message;
 }
 
