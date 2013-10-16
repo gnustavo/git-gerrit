@@ -475,10 +475,13 @@ and a single dash is sufficient, even for long option names.
 
 =head2 git gerrit new [--update] TOPIC [BRANCH]
 
-The C<new> sub-command starts a new change on top of the current
-branch or BRANCH, if specified. It creates a new change-branch off of
-BRANCH called C<change/BRANCH/TOPIC> and checks it out for you to
-start making changes to your working area.
+The C<new> sub-command creates a new change-branch off of BRANCH
+called C<change/BRANCH/TOPIC> and checks it out for you to start
+making changes to your working area.
+
+If no BRANCH is specified, the new change is based on the current
+branch, unless it's a change-branch itself, in which case the new
+change is based on the current change-branch's upstream branch.
 
 The TOPIC name must contain at least one non-digit character so that
 it's clear that this is a new change-branch, not yet pushed to

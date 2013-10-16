@@ -617,7 +617,8 @@ $Commands{new} = sub {
     my $branch = shift @ARGV || current_branch;
 
     if (my ($upstream, $id) = change_branch_info($branch)) {
-        error "$Command: You can't base a new change on a change branch ($branch).";
+        # If we're on a change-branch the new change-branch is based on the same upstream
+        $branch = $upstream;
     }
 
     my $status = qx/git status --porcelain --untracked-files=no/;
