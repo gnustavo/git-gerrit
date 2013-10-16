@@ -369,14 +369,8 @@ sub gerrit {
         $gerrit = Gerrit::REST->new(config('baseurl'), $username, $password);
         eval { $gerrit->GET("/projects/" . uri_escape_utf8(config('project'))) };
         if (my $error = $@) {
-            if ($error->{code} == 401) {
-                error "Gerrit rejected the authentication credentials";
-            } elsif ($error->{code} == 403) {
-                error "Cannot connect to Gerrit at " . config('baseurl');
-            } else {
-                error "Error connecting to Gerrit:\n" . $error->as_text;
-            }
-            set_credentials($username, $password, 'reject');
+            set_credentials($username, $password, 'reject') if $error->{code} == 401;
+            die $error;
         } else {
             set_credentials($username, $password, 'approve');
         }
