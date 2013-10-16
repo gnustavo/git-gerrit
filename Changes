@@ -2,6 +2,12 @@ Revision history for App::GitGerrit. -*- text -*-
 
 {{$NEXT}}
 
+0.016     2013-10-16 10:53:43 America/Sao_Paulo
+
+  [Fixes]
+  - When Gerrit was in any way inaccessible the error messages were
+    mangled.
+
 0.015     2013-10-15 21:57:11 America/Sao_Paulo
 
   [New features]
