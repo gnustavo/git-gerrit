@@ -2,6 +2,19 @@ Revision history for App::GitGerrit. -*- text -*-
 
 {{$NEXT}}
 
+0.015     2013-10-15 21:57:11 America/Sao_Paulo
+
+  [New features]
+  - It's possible now to specify a default set of options for each
+    sub-command using the variable git-gerrit.options.COMMAND.
+
+  [Changes]
+  - Take off the message about this being beta code from README.
+
+  [Fixes]
+  - Remove dependency from File::Slurp in order to correctly support
+    locale-based encodings in the message file created by the editor.
+
 0.014     2013-10-12 22:03:10 America/Sao_Paulo
 
   [New features]
