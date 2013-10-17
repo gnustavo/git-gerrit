@@ -720,50 +720,57 @@ $Commands{my} = sub {
 $Commands{show} = sub {
     get_options();
 
-    my $id = shift @ARGV || current_change_id()
-        or syntax_error "$Command: Missing CHANGE.";
+    unless (@ARGV) {
+        my $id = current_change_id()
+            or syntax_error "$Command: You have to be in a change-branch or specify at least one CHANGE.";
+        $id =~ /^\d+$/
+            or error "$Command: The change-branch you're in haven't been pushed yet.";
+        @ARGV = ($id);
+    }
 
-    my $change = gerrit_or_die(GET => "/changes/$id/detail");
+    foreach my $id (@ARGV) {
+        my $change = gerrit_or_die(GET => "/changes/$id/detail");
 
-    print <<EOF;
+        print <<EOF;
  Change-Num: $change->{_number}
   Change-Id: $change->{change_id}
     Subject: $change->{subject}
       Owner: $change->{owner}{name}
 EOF
 
-    foreach my $date (qw/created updated/) {
-        $change->{$date} = normalize_date($change->{$date})
-            if exists $change->{$date};
-    }
-
-    foreach my $key (qw/project branch topic created updated status reviewed mergeable/) {
-        printf "%12s %s\n", "\u$key:", $change->{$key}
-            if exists $change->{$key};
-    }
-
-    print "\n";
-    # We want to produce a table in which the first column lists the
-    # reviewer names and the other columns have their votes for each
-    # label. However, the change object has this information
-    # inverted. So, we have to first collect all votes.
-    my @labels = sort keys %{$change->{labels}};
-    my %reviewers;
-    while (my ($label, $info) = each %{$change->{labels}}) {
-        foreach my $vote (@{$info->{all}}) {
-            $reviewers{$vote->{name}}{$label} = $vote->{value};
+        foreach my $date (qw/created updated/) {
+            $change->{$date} = normalize_date($change->{$date})
+                if exists $change->{$date};
         }
-    }
 
-    # And now we can output the vote table
-    require Text::Table;
-    my $table = Text::Table->new('REVIEWER', map {"$_\n&num"} @labels);
+        foreach my $key (qw/project branch topic created updated status reviewed mergeable/) {
+            printf "%12s %s\n", "\u$key:", $change->{$key}
+                if exists $change->{$key};
+        }
 
-    foreach my $name (sort keys %reviewers) {
-        my @votes = map {$_ > 0 ? "+$_" : $_} map {defined $_ ? $_ : '0'} @{$reviewers{$name}}{@labels};
-        $table->add($name, @votes);
+        print "\n";
+        # We want to produce a table in which the first column lists the
+        # reviewer names and the other columns have their votes for each
+        # label. However, the change object has this information
+        # inverted. So, we have to first collect all votes.
+        my @labels = sort keys %{$change->{labels}};
+        my %reviewers;
+        while (my ($label, $info) = each %{$change->{labels}}) {
+            foreach my $vote (@{$info->{all}}) {
+                $reviewers{$vote->{name}}{$label} = $vote->{value};
+            }
+        }
+
+        # And now we can output the vote table
+        require Text::Table;
+        my $table = Text::Table->new('REVIEWER', map {"$_\n&num"} @labels);
+
+        foreach my $name (sort keys %reviewers) {
+            my @votes = map {$_ > 0 ? "+$_" : $_} map {defined $_ ? $_ : '0'} @{$reviewers{$name}}{@labels};
+            $table->add($name, @votes);
+        }
+        print $table->table(), '-' x 60, "\n";
     }
-    print $table->table(), "\n";
 
     return;
 };

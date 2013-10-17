@@ -23,7 +23,7 @@ __END__
 
     git gerrit query       [--limit LIMIT] [--verbose] [[NAME=]QUERY]*
     git gerrit my          [--limit LIMIT] [--verbose] [changes|drafts|watched|starred]
-    git gerrit show        [CHANGE]
+    git gerrit show        CHANGE*
 
     git gerrit checkout    [CHANGE]
     git gerrit upstream    [--keep]
@@ -651,11 +651,11 @@ The C<changes> argument is used by default if you don't specify any.
 The options taken by the C<my> sub-command are passed to the C<query>
 sub-command.
 
-=head2 git gerrit show [CHANGE]
+=head2 git gerrit show CHANGE*
 
-The B<show> sub-command describes a CHANGE in detail, showing much
-like what Gerrit shows in a change page of its web interface. For
-example:
+The B<show> sub-command describes one or more CHANGEs in detail,
+showing much like what Gerrit shows in a change page of its web
+interface. For example:
 
     $ git gerrit show 1186
      Change-Num: 1186
@@ -668,7 +668,13 @@ example:
         Updated: 2013-09-18 19:45:56
          Status: MERGED
 
-If a CHANGE is not passed the branch associated with the current
+    REVIEWER                         Code-Review
+    Gustavo Leite de Mendonça Chaves  0
+    Jenkins                          +1
+    Laurel Keys                      +2
+    ------------------------------------------------------------
+
+If no CHANGE is specified, the one associated with the current
 change-branch is described. If you're not in a change-branch, you'll
 get an error.
 
