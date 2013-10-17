@@ -794,20 +794,27 @@ $Commands{config} = sub {
 $Commands{checkout} = $Commands{co} = sub {
     get_options();
 
-    my $id = shift @ARGV || current_change_id()
-        or syntax_error "$Command: Missing CHANGE.";
+    unless (@ARGV) {
+        my $id = current_change_id()
+            or syntax_error "$Command: You have to be in a change-branch or specify at least one CHANGE.";
+        $id =~ /^\d+$/
+            or error "$Command: The change-branch you're in haven't been pushed yet.";
+        @ARGV = ($id);
+    }
 
-    my $change = get_change($id);
+    my $branch;
+    foreach my $id (@ARGV) {
+        my $change = get_change($id);
 
-    my ($revision) = values %{$change->{revisions}};
+        my ($revision) = values %{$change->{revisions}};
 
-    my ($url, $ref) = @{$revision->{fetch}{http}}{qw/url ref/};
+        my ($url, $ref) = @{$revision->{fetch}{http}}{qw/url ref/};
 
-    my $branch = "change/$change->{branch}/$change->{_number}";
+        $branch = "change/$change->{branch}/$change->{_number}";
 
-    cmd "git fetch $url $ref:$branch"
-        or error "Can't fetch $url";
-
+        cmd "git fetch $url $ref:$branch"
+            or error "Can't fetch $url";
+    }
     cmd "git checkout $branch";
 
     return;
