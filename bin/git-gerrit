@@ -979,6 +979,11 @@ To amend a change you first check it out to a local
 change-branch. Then you can amend it and, finally, push it as another
 patch-set to Gerrit, checking out upstream again.
 
+What if you want to make a comment on your new patchset? No problem,
+simply change the last line above for this:
+
+    git gerrit push --keep && git gerrit review
+
 Without git-gerrit you would have to go first to Gerrit's web
 interface, find the change, and copy its fetch/checkout command
 line. Then you could paste it in your terminal and perform the
@@ -989,6 +994,9 @@ amending like this:
     git commit --amend
     git push origin HEAD:refs/for/master
     git checkout master
+
+Oh, and if you want to comment on the new patchset, you have to go to
+Gerrit's web interface again.
 
 =head1 SEE ALSO
 
