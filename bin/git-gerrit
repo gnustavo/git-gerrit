@@ -203,7 +203,7 @@ This is designed so that for most Gerrit instances git-gerrit should
 work out of the box, without any explicit configuration.
 
 For example, if you're working on Android's
-L<kernel/common|https://android-review.googlesource.com/#/admin/projects/kernel/common>
+L<kernel|https://android-review.googlesource.com/#/admin/projects/kernel/common>
 project, you may clone it with the suggested command:
 
     git clone https://android.googlesource.com/kernel/common
@@ -221,9 +221,9 @@ Then, git-gerrit will figure this out from the clone URL:
 =back
 
 If you're working on Eclipse's
-L<egit/egit|https://git.eclipse.org/r/#/admin/projects/egit/egit>
-project, however, you must help git-gerrit figuring its
-configuration. This is the suggested command to clone it:
+L<egit|https://git.eclipse.org/r/#/admin/projects/egit/egit> project,
+however, you must help git-gerrit figuring its configuration. This is
+the suggested command to clone it:
 
     git clone https://git.eclipse.org/r/egit/egit
 
@@ -367,7 +367,7 @@ people should avoid putting credentials there, but if you do
 git-gerrit will be satisfied.
 
 Then, git-gerrit tries to load Perl's L<Net::Netrc> module, if
-available, to get credentials from a L<netrc(5)> file.
+available, to get credentials from a C<netrc(5)> file.
 
 As a last resort, git-gerrit tries to load Perl's L<Term::Prompt>
 module to prompt you for the credentials.
