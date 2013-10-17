@@ -594,6 +594,20 @@ sub auto_reviewers {
     return keys %reviewers;
 }
 
+# This routine is used by all sub-commands that accept zero or more
+# change ids. If @ARGV is empty it pushes into it the id of the change
+# associated with the current change-branch, if any.
+
+sub grok_unspecified_change {
+    unless (@ARGV) {
+        my $id = current_change_id()
+            or syntax_error "$Command: You have to be in a change-branch or specify at least one CHANGE.";
+        $id =~ /^\d+$/
+            or error "$Command: The change-branch you're in haven't been pushed yet.";
+        @ARGV = ($id);
+    }
+}
+
 ############################################################
 # MAIN
 
@@ -720,13 +734,7 @@ $Commands{my} = sub {
 $Commands{show} = sub {
     get_options();
 
-    unless (@ARGV) {
-        my $id = current_change_id()
-            or syntax_error "$Command: You have to be in a change-branch or specify at least one CHANGE.";
-        $id =~ /^\d+$/
-            or error "$Command: The change-branch you're in haven't been pushed yet.";
-        @ARGV = ($id);
-    }
+    grok_unspecified_change();
 
     foreach my $id (@ARGV) {
         my $change = gerrit_or_die(GET => "/changes/$id/detail");
@@ -794,13 +802,7 @@ $Commands{config} = sub {
 $Commands{checkout} = $Commands{co} = sub {
     get_options();
 
-    unless (@ARGV) {
-        my $id = current_change_id()
-            or syntax_error "$Command: You have to be in a change-branch or specify at least one CHANGE.";
-        $id =~ /^\d+$/
-            or error "$Command: The change-branch you're in haven't been pushed yet.";
-        @ARGV = ($id);
-    }
+    grok_unspecified_change();
 
     my $branch;
     foreach my $id (@ARGV) {
