@@ -1139,6 +1139,39 @@ $Commands{submit} = sub {
     return;
 };
 
+$Commands{web} = sub {
+    # The 'gerrit web' sub-command passes all of its options,
+    # but --debug, to 'git web--browse'.
+    Getopt::Long::Configure('pass_through');
+    get_options();
+
+    # If the user is passing any option we require that it mark where
+    # they end with a '--' so that we know where the CHANGEs arguments
+    # start.
+    my @options;
+    for (my $i = 0; $i < @ARGV; ++$i) {
+        if ($ARGV[$i] eq '--') {
+            # We found a mark. Let's move all the options from @ARGV
+            # to @options and get rid of the mark.
+            @options = splice @ARGV, 0, $i;
+            shift @ARGV;
+            last;
+        }
+    }
+
+    grok_unspecified_change();
+
+    # Grok the URLs of each change
+    my @urls;
+    my $baseurl = config('baseurl');
+    foreach my $id (@ARGV) {
+        my $change = get_change($id);
+        push @urls, "$baseurl/#/c/$change->{_number}";
+    }
+
+    cmd join(' ', qw/git web--browse/, @options, @urls);
+};
+
 $Commands{version} = sub {
     print "Perl version $^V\n";
     print "git-gerrit version $App::GitGerrit::VERSION\n";

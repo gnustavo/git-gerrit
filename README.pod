@@ -84,10 +84,6 @@ recorded as draft comments associated with files or lines.
 
 This would be really cool.
 
-=item * implement 'git gerrit web [CHANGE]'
-
-To go to CHANGE's Gerrit web page in a browser.
-
 =item * implement 'git gerrit prune'
 
 To remove stale change-branches, a la git-repo.

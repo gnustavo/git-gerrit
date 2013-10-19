@@ -36,6 +36,8 @@ __END__
     git gerrit revert      [--message TEXT] [CHANGE]
     git gerrit submit      [--no-wait-for-merge] [--keep] [CHANGE]
 
+    git gerrit web         [OPTIONS --] CHANGE*
+
     git gerrit config
     git gerrit version
 
@@ -901,6 +903,18 @@ This option adds a message to the review avoiding the Git editor
 invocation.
 
 =back
+
+=head2 git gerrit web [OPTIONS --] CHANGE*
+
+The B<web> sub-command opens up in your browser Gerrit's web page for
+each CHANGE. It does it by invoking C<git web--browse> for the list of
+URLs associated with each CHANGE. If no CHANGE is specified and you
+are in a change-branch, the page associated with the current CHANGE is
+openned.
+
+Every option (but --debug) is passed as-is to the C<git web--browse>
+command. If you pass any option you must mark the end of them with a
+'--' mark.
 
 =head2 git gerrit config
 
