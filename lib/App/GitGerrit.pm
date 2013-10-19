@@ -846,7 +846,7 @@ $Commands{upstream} = $Commands{up} = sub {
 };
 
 $Commands{'cherry-pick'} = $Commands{cp} = sub {
-    # The 'gerrit cherry-pick' sub-commands passes all of its options,
+    # The 'gerrit cherry-pick' sub-command passes all of its options,
     # but --debug, to 'git cherry-pick'.
     Getopt::Long::Configure('pass_through');
     get_options();

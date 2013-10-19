@@ -27,7 +27,7 @@ __END__
 
     git gerrit checkout    CHANGE*
     git gerrit upstream    [--keep]
-    git gerrit cherry-pick [OPTIONS]* CHANGE
+    git gerrit cherry-pick OPTIONS* CHANGE
 
     git gerrit reviewer    [--add USERS] [--confirm] [--delete USERS] [CHANGE]
     git gerrit review      [--message TEXT] [--keep] [[LABEL]=VOTE]* [CHANGE]
@@ -718,7 +718,7 @@ both options are present the change-branch isn't deleted.
 
 =back
 
-=head2 git gerrit cherry-pick [OPTIONS]* CHANGE
+=head2 git gerrit cherry-pick OPTIONS* CHANGE
 
 The B<cherry-pick> sub-command fetches CHANGE from Gerrit and applies
 it to the current branch using the C<git cherry-pick> command. The
