@@ -58,8 +58,6 @@ L<this|https://npmjs.org/package/git-jira>.
 Another one would be to invite reviewers based on the history of the
 files/lines touched by the change.
 
-=item * implement a bash completion script
-
 =item * support named-queries via git-gerrit.query configuration.
 
 This idea comes from L<querrit|https://gitorious.org/querrit/querrit>

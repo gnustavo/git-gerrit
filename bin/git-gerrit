@@ -1017,6 +1017,19 @@ amending like this:
 Oh, and if you want to comment on the new patchset, you have to go to
 Gerrit's web interface again.
 
+=head1 BASH COMPLETION
+
+If you use bash and have L<bash completion enabled for
+Git|http://git-scm.com/book/en/Git-Basics-Tips-and-Tricks> you may
+also enable it for git-gerrit by sourcing the
+F<etc/bash_completion.d/git-gerrit> script that comes with
+L<App::GitGerrit> distribution. You may do it in your F<~/.bashrc>
+file like this:
+
+    source $PERL_ROOT/etc/bash_completion.d/git-gerrit
+
+Where C<PERL_ROOT> is the root of your Perl installation.
+
 =head1 SEE ALSO
 
 There are some alternatives to git-gerrit, other Git extensions to
