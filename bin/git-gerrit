@@ -78,304 +78,6 @@ git-gerrit to incorporate new functionality.
 
 There are a few alternatives to git-gerrit described L<below|/"SEE ALSO">.
 
-=head1 INSTALLATION
-
-Git-gerrit requires Perl 5.10 or newer and Git (any version should do,
-but 1.8 is better integrated). Check it like this:
-
-    perl -v
-    git --version
-
-Git-gerrit is part of the
-L<App::GitGerrit|http://search.cpan.org/dist/App-GitGerrit/>
-distribution that you have to download from
-L<CPAN|http://search.cpan.org/> and install. There are a few ways to
-do it, depending on your environment. Here are a few tips:
-
-=head2 If you cook your own Perl
-
-If you build your own Perl, perhaps using
-L<perlbrew|http://perlbrew.pl/>, you know the drill:
-
-    cpanm App::GitGerrit
-
-=head2 Ubuntu or Debian?
-
-If you want to use the Perl that comes packaged in your Debian-based
-distribution, you can install some git-gerrit dependencies from
-packaged perl modules. This are the ones packaged with Ubuntu 12.04:
-
-    sudo apt-get install -y \
-        libfile-slurp-perl liburi-encode-perl libhtml-tree-perl libjson-perl \
-        libscope-guard-perl libcrypt-ssleay-perl libwww-perl cpanminus
-
-The nifty C<cpanm> installer should take care of the remaining
-dependencies and of installing C<git-gerrit> for you like this:
-
-    sudo su -l -c "cpanm App::GitGerrit"
-
-=head2 RedHat or CentOS?
-
-If you want to use the Perl that comes packaged in your RedHat-derived
-distribution, you can install some git-gerrit dependencies from
-packaged perl modules. This are the ones packaged with CentOS 6.4:
-
-    sudo yum install -y \
-        perl-File-Slurp perl-URI perl-HTML-Tree perl-JSON perl-Scope-Guard \
-        perl-Test-Exception perl-Test-use-ok perl-Crypt-SSLeay perl-YAML \
-        perl-CPAN perl-ExtUtils-MakeMaker
-
-The verbose C<cpan> installer should take care of the remaining
-dependencies and of installing C<git-gerrit> for you like this:
-
-    sudo su -l -c "cpan App::GitGerrit"
-
-=head2 Windows
-
-On Windows I suggest that you install L<Strawberry
-Perl|http://strawberryperl.com/>. Then, open a command line tool and
-type this:
-
-    cpanm Data::Util App::GitGerrit
-
-Note that on Windows you may have to invoke C<git-gerrit> directly as
-B<git-gerrit> and not through Git as B<git gerrit>. This is because
-Git will probably use the old Perl that comes bundled with it, not
-Strawberry Perl. Your mileage may vary, though.
-
-=head1 CONFIGURATION
-
-Git-gerrit is configured through Git's standard configuration
-framework, which you can read about with the C<git help config>
-command. All git-gerrit's configuration variables are in the
-C<git-gerrit> section and can be created at the C<system>, the
-C<global>, or the C<local> level. More specifically, git-gerrit groks
-its configuration from the output of the C<git config -l> command.
-
-=head2 Git and Gerrit access
-
-In order to interact with Gerrit, git-gerrit has to know three things
-which it can usually infer from your default Git configuration, but
-that you may be explicit about using these Git configuration
-variables:
-
-=over
-
-=item * B<git-gerrit.remote>
-
-Whenever git-gerrit invokes a Git command to interact with Gerrit
-(e.g., git-push and git-fetch) it refers to Gerrit using a remote
-name. You probably already have a remote configured for Gerrit. If you
-don't, git-gerrit assumes the name C<origin> by default.
-
-You can check your Git remotes by issuing the command C<git remote
--v>. Note that the remote's URL must use the HTTP or (better yet)
-HTTPS protocol, not SSH.
-
-=item * B<git-gerrit.baseurl>
-
-This is the value of the
-L<gerrit.canonicalWebUrl|https://gerrit-review.googlesource.com/Documentation/config-gerrit.html#_a_id_gerrit_a_section_gerrit>
-variable configured in the C<etc/gerrit.config> file at Gerrit's
-server. It's needed so that git-gerrit can interact with Gerrit's REST
-API.
-
-If you don't specify it, git-gerrit assumes that it is equal to the
-remote's URL minus the path.
-
-This usually can be configured globally, if you have a Gerrit server
-hosting several of your repositories.
-
-It's a good idea to have your username in this URL to avoid being
-asked for it interactively.
-
-=item * B<git-gerrit.project>
-
-This is the name of the project associated with the Gerrit
-repository. It's needed so that git-gerrit can interact with Gerrit's
-REST API.
-
-If you don't specify it, git-gerrit assumes that it is equal to the
-path of the remote's URL stripped of any path in
-C<git-gerrit.baseurl>.
-
-=back
-
-This is designed so that for most Gerrit instances git-gerrit should
-work out of the box, without any explicit configuration.
-
-For example, if you're working on Android's
-L<kernel|https://android-review.googlesource.com/#/admin/projects/kernel/common>
-project, you may clone it with the suggested command:
-
-    git clone https://android.googlesource.com/kernel/common
-
-Then, git-gerrit will figure this out from the clone URL:
-
-=over
-
-=item git-gerrit.remote = origin
-
-=item git-gerrit.baseurl = https://android.googlesource.com
-
-=item git-gerrit.project = kernel/common
-
-=back
-
-If you're working on Eclipse's
-L<egit|https://git.eclipse.org/r/#/admin/projects/egit/egit> project,
-however, you must help git-gerrit figuring its configuration. This is
-the suggested command to clone it:
-
-    git clone https://git.eclipse.org/r/egit/egit
-
-Note that the base URL has a path part (C</r>). So, in this case you
-must configure it explicitly like this:
-
-    git config --global git-gerrit.baseurl https://git.eclipse.org/r
-
-The remote and the project names can be inferred automatically.
-
-=head2 Option defaults
-
-Each git-gerrit sub-command accept a specific set of options and each
-option has a default value which is specified in the sub-commands
-documentation. You can specify a default set of options for each
-sub-command by defining a variable like this:
-
-=over
-
-=item * B<options.COMMAND> OPTIONS
-
-OPTIONS is the option list that should be passed as default for
-COMMAND. Specifically, it's a string which is split on spaces and the
-resulting list is unshifted on @ARGV, so that it's like you have
-passed these options on the command line first.
-
-So, for example, if you'd like to always update the upstream branch
-when you create a new change-branch, you can pass the C<--update>
-option to C<new> by default by setting this:
-
-    git config git-gerrit.options.new --update
-
-Options common to all commands can be specified to the pseudo-command
-'all' like this:
-
-    git config git-gerrit.options.all --debug
-
-=back
-
-=head2 Automatic reviewers
-
-You can tell git-gerrit to invite automatically some users to review
-your pushed changes based on their upstream branch name and on the
-files affected.
-
-=over
-
-=item * B<git-gerrit.reviewers USERS [CONDITION]*>
-
-This variable specifies a list of Gerrit users to be automatically
-invited as reviewers in a B<git gerrit push> command.
-
-USERS is a colon-separated list of usernames.
-
-CONDITIONs are space-separated boolean expressions. All CONDITIONs, if
-any, must be true for USERS to be invited. If no CONDITIONS are
-specified, USERS are invited.
-
-A CONDITION may check either the name of the branch to which the
-change is being pushed or the names of the files affected by the
-change itself. The matching may be either exact or by L<regular
-expressions|perlre>, as follows.
-
-=over
-
-=item * branch=REFNAME
-
-Checks if REFNAME is exactly equal to the change's upstream name
-(without the C<refs/heads> prefix).
-
-=item * branch~REGEXP
-
-Checks if the upstream name matches REGEXP.
-
-=item * path=PATH
-
-Checks if the path of any file affected by the commit being pushed, as
-shown by C<git diff --name-only upstream..HEAD> is exactly equal to
-the complete path of one of those files.
-
-=item * path~REGEXP
-
-Checks if the path of any affected file matches REGEXP.
-
-=back
-
-You may specify the C<git-gerrit.reviewers> variable multiple
-times. All users mentioned in all specifications that match their
-CONDITIONs are invited as reviewers to the current change being
-pushed.
-
-=back
-
-=head1 AUTHENTICATION
-
-If you have Git 1.8.0 or later, git-gerrit uses Git's credential
-management system via its B<git-credential> command to obtain
-credentials for connecting to Gerrit. You can take advantage of this
-by configuring Git's C<credential.helper> variable to use a persistent
-credential storage and avoid being asked for the authentication
-credentials repeatedly. Please, read B<gitcredentials> manpage to know
-how to configure this system. But here are a few tips anyway:
-
-=over
-
-=item * B<On Ubuntu Linux (tested on 13.04)>
-
-Use the
-L<git-credential-gnome-keyring|http://stackoverflow.com/questions/13385690/how-to-use-git-with-gnome-keyring-integration>
-program which provides a very nice integration with your desktop
-environment. You have to compile the helper first:
-
-    sudo apt-get install libgnome-keyring-dev
-    sudo make -C /usr/share/doc/git/contrib/credential/gnome-keyring
-    git config --global credential.helper /usr/share/doc/git/contrib/credential/gnome-keyring/git-credential-gnome-keyring
-
-=item * B<On other Unix-like systems>
-
-The B<git-credential-cache> command which comes with Git is as a
-balanced compromise between convenience and security:
-
-    git config --global credential.helper cache --timeout 86400
-
-=item * B<On Windows systems>
-
-The best choice seems to be the third-party application
-L<git-credential-winstore|http://gitcredentialstore.codeplex.com/>,
-which you have to install first.
-
-    git config --global credential.helper winstore
-
-=back
-
-If you're using a pre-1.8 Git that doesn't support the
-B<git-credential> command, there are a few fall-backs.
-
-First, git-gerrit tries to get credentials from the
-C<git-gerrit.baseurl> configuration variable. The URL should be in a
-format like C<https://username:password@host/path>. Security conscious
-people should avoid putting credentials there, but if you do
-git-gerrit will be satisfied.
-
-Then, git-gerrit tries to load Perl's L<Net::Netrc> module, if
-available, to get credentials from a C<netrc(5)> file.
-
-As a last resort, git-gerrit tries to load Perl's L<Term::Prompt>
-module to prompt you for the credentials.
-
-If none of this works, git-gerrit dies screaming.
-
 =head1 GLOSSARY
 
 There are a few concepts that should be clear in order to the
@@ -449,6 +151,82 @@ So, you should reserve the C<change/> top-level branch name for the
 change-branches managed by git-gerrit.
 
 =back
+
+=head1 GERRIT WORKFLOW
+
+Here are the main use-cases of git-gerrit to manage your changes.
+
+=head2 Creating a new change for review
+
+Suppose you want to create a new change on master:
+
+    git gerrit new topic master
+    # edit
+    git commit
+    git gerrit push
+
+First you create a new change-branch for your new change. If you're
+already in master you don't need to mention it on the first line. Then
+you make your change editing your working area and committing. When
+you're done, simply tell git-gerrit to push your change and get back
+to master.
+
+In order to do the same thing using only standard Git commands you'd
+do something like this:
+
+    git checkout master
+    git pull --ff-only
+    git checkout -b change/master/topic
+    # edit
+    git commit
+    git push origin HEAD:refs/for/master
+    git checkout master
+    git branch -D change/master/topic
+
+=head2 Reviewing a change
+
+    git gerrit my changes
+    git gerrit checkout 1234
+    git show
+    git gerrit review =-1
+
+First, if you don't know the C<{change-id}> of the change you want to
+review, you ask C<my changes> to get a list of the changes still
+unreviewed. Then you checkout one change and study it. Finally, you
+record your review and gets back to the change's upstream branch.
+
+Without git-gerrit you'd have to perform the review using Gerrit's web
+interface.
+
+=head2 Amending a change
+
+    git gerrit checkout 1234
+    # edit
+    git commit --amend
+    git gerrit push
+
+To amend a change you first check it out to a local
+change-branch. Then you can amend it and, finally, push it as another
+patch-set to Gerrit, checking out upstream again.
+
+What if you want to make a comment on your new patchset? No problem,
+simply change the last line above for this:
+
+    git gerrit push --keep && git gerrit review
+
+Without git-gerrit you would have to go first to Gerrit's web
+interface, find the change, and copy its fetch/checkout command
+line. Then you could paste it in your terminal and perform the
+amending like this:
+
+    git fetch https://gustavo@gerrit.example.net/project refs/changes/90/1190/2 && git checkout FETCH_HEAD
+    # edit
+    git commit --amend
+    git push origin HEAD:refs/for/master
+    git checkout master
+
+Oh, and if you want to comment on the new patchset, you have to go to
+Gerrit's web interface again.
 
 =head1 SUB-COMMANDS
 
@@ -928,6 +706,247 @@ explicitly configured.
 The B<version> sub-command shows the versions of git-gerrit, Git, and
 Gerrit that you're using.
 
+=head1 INSTALLATION
+
+Git-gerrit requires Perl 5.10 or newer and Git (any version should do,
+but 1.8 is better integrated). Check it like this:
+
+    perl -v
+    git --version
+
+Git-gerrit is part of the
+L<App::GitGerrit|http://search.cpan.org/dist/App-GitGerrit/>
+distribution that you have to download from
+L<CPAN|http://search.cpan.org/> and install. There are a few ways to
+do it, depending on your environment. Here are a few tips:
+
+=head2 If you cook your own Perl
+
+If you build your own Perl, perhaps using
+L<perlbrew|http://perlbrew.pl/>, you know the drill:
+
+    cpanm App::GitGerrit
+
+=head2 Ubuntu or Debian?
+
+If you want to use the Perl that comes packaged in your Debian-based
+distribution, you can install some git-gerrit dependencies from
+packaged perl modules. This are the ones packaged with Ubuntu 12.04:
+
+    sudo apt-get install -y \
+        libfile-slurp-perl liburi-encode-perl libhtml-tree-perl libjson-perl \
+        libscope-guard-perl libcrypt-ssleay-perl libwww-perl cpanminus
+
+The nifty C<cpanm> installer should take care of the remaining
+dependencies and of installing C<git-gerrit> for you like this:
+
+    sudo su -l -c "cpanm App::GitGerrit"
+
+=head2 RedHat or CentOS?
+
+If you want to use the Perl that comes packaged in your RedHat-derived
+distribution, you can install some git-gerrit dependencies from
+packaged perl modules. This are the ones packaged with CentOS 6.4:
+
+    sudo yum install -y \
+        perl-File-Slurp perl-URI perl-HTML-Tree perl-JSON perl-Scope-Guard \
+        perl-Test-Exception perl-Test-use-ok perl-Crypt-SSLeay perl-YAML \
+        perl-CPAN perl-ExtUtils-MakeMaker
+
+The verbose C<cpan> installer should take care of the remaining
+dependencies and of installing C<git-gerrit> for you like this:
+
+    sudo su -l -c "cpan App::GitGerrit"
+
+=head2 Windows
+
+On Windows I suggest that you install L<Strawberry
+Perl|http://strawberryperl.com/>. Then, open a command line tool and
+type this:
+
+    cpanm Data::Util App::GitGerrit
+
+Note that on Windows you may have to invoke C<git-gerrit> directly as
+B<git-gerrit> and not through Git as B<git gerrit>. This is because
+Git will probably use the old Perl that comes bundled with it, not
+Strawberry Perl. Your mileage may vary, though.
+
+=head1 CONFIGURATION
+
+Git-gerrit is configured through Git's standard configuration
+framework, which you can read about with the C<git help config>
+command. All git-gerrit's configuration variables are in the
+C<git-gerrit> section and can be created at the C<system>, the
+C<global>, or the C<local> level. More specifically, git-gerrit groks
+its configuration from the output of the C<git config -l> command.
+
+=head2 Git and Gerrit access
+
+In order to interact with Gerrit, git-gerrit has to know three things
+which it can usually infer from your default Git configuration, but
+that you may be explicit about using these Git configuration
+variables:
+
+=over
+
+=item * B<git-gerrit.remote>
+
+Whenever git-gerrit invokes a Git command to interact with Gerrit
+(e.g., git-push and git-fetch) it refers to Gerrit using a remote
+name. You probably already have a remote configured for Gerrit. If you
+don't, git-gerrit assumes the name C<origin> by default.
+
+You can check your Git remotes by issuing the command C<git remote
+-v>. Note that the remote's URL must use the HTTP or (better yet)
+HTTPS protocol, not SSH.
+
+=item * B<git-gerrit.baseurl>
+
+This is the value of the
+L<gerrit.canonicalWebUrl|https://gerrit-review.googlesource.com/Documentation/config-gerrit.html#_a_id_gerrit_a_section_gerrit>
+variable configured in the C<etc/gerrit.config> file at Gerrit's
+server. It's needed so that git-gerrit can interact with Gerrit's REST
+API.
+
+If you don't specify it, git-gerrit assumes that it is equal to the
+remote's URL minus the path.
+
+This usually can be configured globally, if you have a Gerrit server
+hosting several of your repositories.
+
+It's a good idea to have your username in this URL to avoid being
+asked for it interactively.
+
+=item * B<git-gerrit.project>
+
+This is the name of the project associated with the Gerrit
+repository. It's needed so that git-gerrit can interact with Gerrit's
+REST API.
+
+If you don't specify it, git-gerrit assumes that it is equal to the
+path of the remote's URL stripped of any path in
+C<git-gerrit.baseurl>.
+
+=back
+
+This is designed so that for most Gerrit instances git-gerrit should
+work out of the box, without any explicit configuration.
+
+For example, if you're working on Android's
+L<kernel|https://android-review.googlesource.com/#/admin/projects/kernel/common>
+project, you may clone it with the suggested command:
+
+    git clone https://android.googlesource.com/kernel/common
+
+Then, git-gerrit will figure this out from the clone URL:
+
+=over
+
+=item git-gerrit.remote = origin
+
+=item git-gerrit.baseurl = https://android.googlesource.com
+
+=item git-gerrit.project = kernel/common
+
+=back
+
+If you're working on Eclipse's
+L<egit|https://git.eclipse.org/r/#/admin/projects/egit/egit> project,
+however, you must help git-gerrit figuring its configuration. This is
+the suggested command to clone it:
+
+    git clone https://git.eclipse.org/r/egit/egit
+
+Note that the base URL has a path part (C</r>). So, in this case you
+must configure it explicitly like this:
+
+    git config --global git-gerrit.baseurl https://git.eclipse.org/r
+
+The remote and the project names can be inferred automatically.
+
+=head2 Option defaults
+
+Each git-gerrit sub-command accept a specific set of options and each
+option has a default value which is specified in the sub-commands
+documentation. You can specify a default set of options for each
+sub-command by defining a variable like this:
+
+=over
+
+=item * B<options.COMMAND> OPTIONS
+
+OPTIONS is the option list that should be passed as default for
+COMMAND. Specifically, it's a string which is split on spaces and the
+resulting list is unshifted on @ARGV, so that it's like you have
+passed these options on the command line first.
+
+So, for example, if you'd like to always update the upstream branch
+when you create a new change-branch, you can pass the C<--update>
+option to C<new> by default by setting this:
+
+    git config git-gerrit.options.new --update
+
+Options common to all commands can be specified to the pseudo-command
+'all' like this:
+
+    git config git-gerrit.options.all --debug
+
+=back
+
+=head2 Automatic reviewers
+
+You can tell git-gerrit to invite automatically some users to review
+your pushed changes based on their upstream branch name and on the
+files affected.
+
+=over
+
+=item * B<git-gerrit.reviewers USERS [CONDITION]*>
+
+This variable specifies a list of Gerrit users to be automatically
+invited as reviewers in a B<git gerrit push> command.
+
+USERS is a colon-separated list of usernames.
+
+CONDITIONs are space-separated boolean expressions. All CONDITIONs, if
+any, must be true for USERS to be invited. If no CONDITIONS are
+specified, USERS are invited.
+
+A CONDITION may check either the name of the branch to which the
+change is being pushed or the names of the files affected by the
+change itself. The matching may be either exact or by L<regular
+expressions|perlre>, as follows.
+
+=over
+
+=item * branch=REFNAME
+
+Checks if REFNAME is exactly equal to the change's upstream name
+(without the C<refs/heads> prefix).
+
+=item * branch~REGEXP
+
+Checks if the upstream name matches REGEXP.
+
+=item * path=PATH
+
+Checks if the path of any file affected by the commit being pushed, as
+shown by C<git diff --name-only upstream..HEAD> is exactly equal to
+the complete path of one of those files.
+
+=item * path~REGEXP
+
+Checks if the path of any affected file matches REGEXP.
+
+=back
+
+You may specify the C<git-gerrit.reviewers> variable multiple
+times. All users mentioned in all specifications that match their
+CONDITIONs are invited as reviewers to the current change being
+pushed.
+
+=back
+
 =head1 COMMIT-MSG HOOK
 
 Gerrit provides a C<commit-msg> hook for Git that should be installed
@@ -941,81 +960,62 @@ repository already has a C<commit-msg> hook installed. If not, it
 automatically downloads Gerrit's standard hook and installs it for
 you.
 
-=head1 GERRIT WORKFLOW
+=head1 AUTHENTICATION
 
-Here are the main use-cases of git-gerrit to manage your changes.
+If you have Git 1.8.0 or later, git-gerrit uses Git's credential
+management system via its B<git-credential> command to obtain
+credentials for connecting to Gerrit. You can take advantage of this
+by configuring Git's C<credential.helper> variable to use a persistent
+credential storage and avoid being asked for the authentication
+credentials repeatedly. Please, read B<gitcredentials> manpage to know
+how to configure this system. But here are a few tips anyway:
 
-=head2 Creating a new change for review
+=over
 
-Suppose you want to create a new change on master:
+=item * B<On Ubuntu Linux (tested on 13.04)>
 
-    git gerrit new topic master
-    # edit
-    git commit
-    git gerrit push
+Use the
+L<git-credential-gnome-keyring|http://stackoverflow.com/questions/13385690/how-to-use-git-with-gnome-keyring-integration>
+program which provides a very nice integration with your desktop
+environment. You have to compile the helper first:
 
-First you create a new change-branch for your new change. If you're
-already in master you don't need to mention it on the first line. Then
-you make your change editing your working area and committing. When
-you're done, simply tell git-gerrit to push your change and get back
-to master.
+    sudo apt-get install libgnome-keyring-dev
+    sudo make -C /usr/share/doc/git/contrib/credential/gnome-keyring
+    git config --global credential.helper /usr/share/doc/git/contrib/credential/gnome-keyring/git-credential-gnome-keyring
 
-In order to do the same thing using only standard Git commands you'd
-do something like this:
+=item * B<On other Unix-like systems>
 
-    git checkout master
-    git pull --ff-only
-    git checkout -b change/master/topic
-    # edit
-    git commit
-    git push origin HEAD:refs/for/master
-    git checkout master
-    git branch -D change/master/topic
+The B<git-credential-cache> command which comes with Git is as a
+balanced compromise between convenience and security:
 
-=head2 Reviewing a change
+    git config --global credential.helper cache --timeout 86400
 
-    git gerrit my changes
-    git gerrit checkout 1234
-    git show
-    git gerrit review =-1
+=item * B<On Windows systems>
 
-First, if you don't know the C<{change-id}> of the change you want to
-review, you ask C<my changes> to get a list of the changes still
-unreviewed. Then you checkout one change and study it. Finally, you
-record your review and gets back to the change's upstream branch.
+The best choice seems to be the third-party application
+L<git-credential-winstore|http://gitcredentialstore.codeplex.com/>,
+which you have to install first.
 
-Without git-gerrit you'd have to perform the review using Gerrit's web
-interface.
+    git config --global credential.helper winstore
 
-=head2 Amending a change
+=back
 
-    git gerrit checkout 1234
-    # edit
-    git commit --amend
-    git gerrit push
+If you're using a pre-1.8 Git that doesn't support the
+B<git-credential> command, there are a few fall-backs.
 
-To amend a change you first check it out to a local
-change-branch. Then you can amend it and, finally, push it as another
-patch-set to Gerrit, checking out upstream again.
+First, git-gerrit tries to get credentials from the
+C<git-gerrit.baseurl> configuration variable. The URL should be in a
+format like C<https://username:password@host/path>. Security conscious
+people should avoid putting credentials there, but if you do
+git-gerrit will be satisfied.
 
-What if you want to make a comment on your new patchset? No problem,
-simply change the last line above for this:
+Then, git-gerrit tries to load Perl's L<Net::Netrc> module, if
+available, to get credentials from a C<netrc(5)> file.
 
-    git gerrit push --keep && git gerrit review
+As a last resort, git-gerrit tries to load Perl's L<Term::Prompt>
+module to prompt you for the credentials.
 
-Without git-gerrit you would have to go first to Gerrit's web
-interface, find the change, and copy its fetch/checkout command
-line. Then you could paste it in your terminal and perform the
-amending like this:
-
-    git fetch https://gustavo@gerrit.example.net/project refs/changes/90/1190/2 && git checkout FETCH_HEAD
-    # edit
-    git commit --amend
-    git push origin HEAD:refs/for/master
-    git checkout master
-
-Oh, and if you want to comment on the new patchset, you have to go to
-Gerrit's web interface again.
+If none of this works, git-gerrit dies screaming.
 
 =head1 BASH COMPLETION
 
