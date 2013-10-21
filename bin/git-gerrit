@@ -15,6 +15,8 @@ exit run();
 
 __END__
 
+=encoding utf8
+
 =head1 SYNOPSIS
 
     git gerrit new         [--update] TOPIC [BRANCH]
@@ -152,7 +154,7 @@ change-branches managed by git-gerrit.
 
 =back
 
-=head1 GERRIT WORKFLOW
+=head1 WORKFLOW
 
 Here are the main use-cases of git-gerrit to manage your changes.
 
@@ -727,11 +729,11 @@ L<perlbrew|http://perlbrew.pl/>, you know the drill:
 
     cpanm App::GitGerrit
 
-=head2 Ubuntu or Debian?
+=head2 Debian, Ubuntu, etc.
 
 If you want to use the Perl that comes packaged in your Debian-based
 distribution, you can install some git-gerrit dependencies from
-packaged perl modules. This are the ones packaged with Ubuntu 12.04:
+packaged perl modules. These are the ones packaged with Ubuntu 12.04:
 
     sudo apt-get install -y \
         libfile-slurp-perl liburi-encode-perl libhtml-tree-perl libjson-perl \
@@ -742,11 +744,11 @@ dependencies and of installing C<git-gerrit> for you like this:
 
     sudo su -l -c "cpanm App::GitGerrit"
 
-=head2 RedHat or CentOS?
+=head2 RedHat, CentOS, etc.
 
 If you want to use the Perl that comes packaged in your RedHat-derived
 distribution, you can install some git-gerrit dependencies from
-packaged perl modules. This are the ones packaged with CentOS 6.4:
+packaged perl modules. These are the ones packaged with CentOS 6.4:
 
     sudo yum install -y \
         perl-File-Slurp perl-URI perl-HTML-Tree perl-JSON perl-Scope-Guard \
@@ -840,15 +842,9 @@ project, you may clone it with the suggested command:
 
 Then, git-gerrit will figure this out from the clone URL:
 
-=over
-
-=item git-gerrit.remote = origin
-
-=item git-gerrit.baseurl = https://android.googlesource.com
-
-=item git-gerrit.project = kernel/common
-
-=back
+    git-gerrit.remote = origin
+    git-gerrit.baseurl = https://android.googlesource.com
+    git-gerrit.project = kernel/common
 
 If you're working on Eclipse's
 L<egit|https://git.eclipse.org/r/#/admin/projects/egit/egit> project,
