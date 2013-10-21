@@ -326,6 +326,9 @@ amend them later, having multiple commits may require rebasing
 dependent commits, which is a more complex operation and clutters the
 review history of the change.
 
+If git status isn't clean, the change-branch isn't rebased and the
+upstream isn't checked out.
+
 =item B<--[no]rebase>
 
 Before a brand new change-branch (one ending in a TOPIC C<name>) is

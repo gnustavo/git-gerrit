@@ -901,8 +901,9 @@ $Commands{push} = sub {
     my ($upstream, $id) = change_branch_info($branch)
         or error "$Command: You aren't in a change branch. I cannot push it.";
 
-    qx/git status --porcelain --untracked-files=no/ eq ''
-        or $Options{force}--
+    my $is_clean = qx/git status --porcelain --untracked-files=no/ eq '';
+
+    $is_clean or $Options{force}--
             or error <<EOF;
 push: Can't push change because git-status is dirty.
       If this is really what you want to do, please try again with --force.
@@ -922,7 +923,7 @@ EOF
     }
 
     # A --noverbose option sets $Options{rebase} to '0'.
-    if ($Options{rebase} || $Options{rebase} eq '' && $id =~ /\D/) {
+    if ($is_clean && ($Options{rebase} || $Options{rebase} eq '' && $id =~ /\D/)) {
         update_branch($upstream)
             or error "$Command: Non-fast-forward pull. Please, merge or rebase your branch first.";
         cmd "git rebase $upstream"
@@ -964,7 +965,7 @@ EOF
     cmd "git push $remote $refspec"
         or error "$Command: Error pushing change.";
 
-    unless ($Options{keep}) {
+    if ($is_clean && ! $Options{keep}) {
         cmd "git checkout $upstream" and cmd "git branch -D $branch";
     }
 
