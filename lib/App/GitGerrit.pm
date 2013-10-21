@@ -805,8 +805,12 @@ $Commands{checkout} = $Commands{co} = sub {
     grok_unspecified_change();
 
     my $branch;
+    my $project = config('project');
     foreach my $id (@ARGV) {
         my $change = get_change($id);
+
+        $change->{project} eq $project
+            or error "$Command: Change $id belongs to a different project ($change->{project}), not $project";
 
         my ($revision) = values %{$change->{revisions}};
 
@@ -815,7 +819,7 @@ $Commands{checkout} = $Commands{co} = sub {
         $branch = "change/$change->{branch}/$change->{_number}";
 
         cmd "git fetch $url $ref:$branch"
-            or error "Can't fetch $url";
+            or error "$Command: Can't fetch $url";
     }
     cmd "git checkout $branch";
 
@@ -861,6 +865,10 @@ $Commands{'cherry-pick'} = $Commands{cp} = sub {
         or syntax_error "$Command: Missing CHANGE.";
 
     my $change = get_change($id);
+
+    my $project = config('project');
+    $change->{project} eq $project
+        or error "$Command: Change $id belongs to a different project ($change->{project}), not $project";
 
     my ($revision) = values %{$change->{revisions}};
 
