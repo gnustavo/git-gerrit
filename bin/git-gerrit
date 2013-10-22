@@ -739,7 +739,7 @@ distribution, you can install some git-gerrit dependencies from
 packaged perl modules. These are the ones packaged with Ubuntu 12.04:
 
     sudo apt-get install -y \
-        libfile-slurp-perl liburi-encode-perl libhtml-tree-perl libjson-perl \
+        liburi-encode-perl libhtml-tree-perl libjson-perl \
         libscope-guard-perl libcrypt-ssleay-perl libwww-perl cpanminus
 
 The nifty C<cpanm> installer should take care of the remaining
@@ -754,7 +754,7 @@ distribution, you can install some git-gerrit dependencies from
 packaged perl modules. These are the ones packaged with CentOS 6.4:
 
     sudo yum install -y \
-        perl-File-Slurp perl-URI perl-HTML-Tree perl-JSON perl-Scope-Guard \
+        perl-URI perl-HTML-Tree perl-JSON perl-Scope-Guard \
         perl-Test-Exception perl-Test-use-ok perl-Crypt-SSLeay perl-YAML \
         perl-CPAN perl-ExtUtils-MakeMaker
 
