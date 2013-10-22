@@ -2,6 +2,39 @@ Revision history for App::GitGerrit. -*- text -*-
 
 {{$NEXT}}
 
+0.017     2013-10-22 08:52:14 America/Sao_Paulo
+
+  [New features]
+
+  - The new 'git gerrit web' sub-command opens up in a web browser the
+    Gerrit pages corresponding to the list of changes it gets as
+    arguments.
+
+  - 'git gerrit show' now accepts a list of changes as arguments and
+    shows all of them.
+
+  - 'git gerrit checkout' now accepts a list of changes as arguments,
+    fetches of them and checks out the last one in the list.
+
+  - Bash completion support is implemented by the
+    etc/bash_completion.d/git-gerrit script.
+
+  [Changes]
+
+  - Issuging a 'git gerrit new' while in a change branch creates
+    another change-branch based on the same upstream. Previously it
+    was an error.
+
+  - The 'git gerrit checkout' and 'git gerrit cherry-pick'
+    sub-commands now check if the changes they operate on belong to
+    the current repository's project. If not, they issue an error.
+
+  - When issuing 'git gerrit push' with a dirty status, the options
+    --keep and --norebase are assumed by default.
+
+  - The git-gerrit manual had its sections completely reordered in an
+    attempt to offer a more natural read.
+
 0.016     2013-10-16 10:53:43 America/Sao_Paulo
 
   [Fixes]
