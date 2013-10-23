@@ -285,7 +285,7 @@ the newest state of your project, which is usually the right thing to do.
 You will be warned if your working area is dirty, as this is sometimes
 a mistake.
 
-=head2 git gerrit push [--keep] [--force] [--[no]rebase] [--draft] [--submit] [--base BASE] [--topic=TOPIC] [--reviewer USERS] [--cc USERS]
+=head2 git gerrit push OPTIONS*
 
 The C<push> sub-command should be invoked to push a change-branch to
 Gerrit's C<refs/for/> branch associated with its upstream branch. It
