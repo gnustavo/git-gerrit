@@ -463,26 +463,9 @@ sub update_branch {
     cmd "git fetch $remote $branch:$branch";
 }
 
-# The following change_branch_* routines are used to create, list, and
-# grok the local change-branches, i.e., the ones we create locally to
-# map Gerrit's changes. Their names have a fixed format like this:
-# "change/<upstream>/<id>. <Upstream> is the name of the local branch
-# from which this change was derived. <Id> can be either a number,
-# meaning the numeric id of a change already in Gerrit, or a
-# topic-name, which was created by the "git-gerrit new <topic>"
-# command.
-
-sub change_branch_new {
-    my ($upstream, $topic) = @_;
-    error "The TOPIC cannot contain the slash character (/)."
-        if $topic =~ m:/:;
-    return "change/$upstream/$topic";
-}
-
-sub change_branch_lists {
-    chomp(my @branches = map s/^\*?\s+//, qx/git branch --list 'change*'/);
-    return @branches;
-}
+# The change_branch_info routine receives the name of a branch. If
+# it's a change-branch, it returns a two-element list containing it's
+# upstream name and its id. Otherwise, it returns the empty list.
 
 sub change_branch_info {
     my ($branch) = @_;
@@ -492,20 +475,12 @@ sub change_branch_info {
     return;
 }
 
-# The current_change routine returns a list of two items: the upstream
-# and the id of the change branch we're currently in. If we're not in
-# a change branch, it returns the empty list.
-
-sub current_change {
-    return change_branch_info(current_branch);
-}
-
 # The current_change_id routine returns the id of the change branch
 # we're currently in. If we're not in a change branch, it returns
 # undef.
 
 sub current_change_id {
-    my ($branch, $id) = current_change;
+    my ($branch, $id) = change_branch_info(current_branch);
 
     return $id;
 }
