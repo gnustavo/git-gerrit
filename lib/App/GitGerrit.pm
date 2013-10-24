@@ -627,6 +627,98 @@ $Commands{new} = sub {
     return;
 };
 
+$Commands{push} = sub {
+    $Options{rebase} = '';      # false by default
+    get_options(
+        'keep',
+        'force+',
+        'rebase!',
+        'draft',
+        'topic=s',
+        'submit',
+        'base=s',
+        'reviewer=s@',
+        'cc=s@'
+    );
+
+    my $branch = current_branch;
+
+    my ($upstream, $id) = change_branch_info($branch)
+        or error "$Command: You aren't in a change branch. I cannot push it.";
+
+    my $is_clean = qx/git status --porcelain --untracked-files=no/ eq '';
+
+    $is_clean or $Options{force}--
+            or error <<EOF;
+push: Can't push change because git-status is dirty.
+      If this is really what you want to do, please try again with --force.
+EOF
+
+    my @commits = qx/git log --decorate=no --oneline HEAD ^$upstream/;
+    if (@commits == 0) {
+        error "$Command: no changes between $upstream and $branch. Pushing would be pointless.";
+    } elsif (@commits > 1) {
+        error <<EOF unless $Options{force}--;
+push: you have more than one commit that you are about to push.
+      The outstanding commits are:
+
+ @commits
+      If this is really what you want to do, please try again with --force.
+EOF
+    }
+
+    # A --noverbose option sets $Options{rebase} to '0'.
+    if ($is_clean && ($Options{rebase} || $Options{rebase} eq '' && $id =~ /\D/)) {
+        update_branch($upstream)
+            or error "$Command: Non-fast-forward pull. Please, merge or rebase your branch first.";
+        cmd "git rebase $upstream"
+            or error "$Command: please resolve this 'git rebase $upstream' and try again.";
+    }
+
+    my $refspec = 'HEAD:refs/' . ($Options{draft} ? 'draft' : 'for') . "/$upstream";
+
+    my @tags;
+    if (my $topic = $Options{topic}) {
+        push @tags, "topic=$topic";
+    } elsif ($id =~ /\D/) {
+        push @tags, "topic=$id";
+    }
+
+    my @reviewers = auto_reviewers($upstream);
+    if (my $reviewers = $Options{reviewer}) {
+        push @reviewers, split(/,/, join(',', @$reviewers));
+    }
+    if (@reviewers) {
+        push @tags, map("r=$_", @reviewers);
+    }
+
+    if (my $ccs = $Options{cc}) {
+        push @tags, map("cc=$_", split(/,/, join(',', @$ccs)));
+    }
+    if ($Options{submit}) {
+        push @tags, 'submit';
+    }
+    if (my $base = $Options{base}) {
+        push @tags, "base=$base";
+    }
+    if (@tags) {
+        $refspec .= '%';
+        $refspec .= join(',', @tags);
+    }
+
+    my $remote = config('remote');
+    cmd "git push $remote $refspec"
+        or error "$Command: Error pushing change.";
+
+    if ($is_clean && ! $Options{keep}) {
+        cmd "git checkout $upstream" and cmd "git branch -D $branch";
+    }
+
+    install_commit_msg_hook;
+
+    return;
+};
+
 $Commands{query} = sub {
     get_options(
         'verbose',
@@ -758,22 +850,6 @@ EOF
     return;
 };
 
-$Commands{config} = sub {
-    my $config = grok_config;
-    my $git_gerrit = $config->{'git-gerrit'}
-        or return;
-    require Text::Table;
-    my $table = Text::Table->new();
-    foreach my $var (sort keys %$git_gerrit) {
-        foreach my $value (@{$git_gerrit->{$var}}) {
-            $table->add("git-gerrit.$var", $value);
-        }
-    }
-    print $table->table(), "\n";
-
-    return;
-};
-
 $Commands{checkout} = $Commands{co} = sub {
     get_options();
 
@@ -853,98 +929,6 @@ $Commands{'cherry-pick'} = $Commands{cp} = sub {
         or error "$Command: can't git fetch $url $ref";
 
     cmd join(' ', 'git cherry-pick', @ARGV, 'FETCH_HEAD');
-
-    return;
-};
-
-$Commands{push} = sub {
-    $Options{rebase} = '';      # false by default
-    get_options(
-        'keep',
-        'force+',
-        'rebase!',
-        'draft',
-        'topic=s',
-        'submit',
-        'base=s',
-        'reviewer=s@',
-        'cc=s@'
-    );
-
-    my $branch = current_branch;
-
-    my ($upstream, $id) = change_branch_info($branch)
-        or error "$Command: You aren't in a change branch. I cannot push it.";
-
-    my $is_clean = qx/git status --porcelain --untracked-files=no/ eq '';
-
-    $is_clean or $Options{force}--
-            or error <<EOF;
-push: Can't push change because git-status is dirty.
-      If this is really what you want to do, please try again with --force.
-EOF
-
-    my @commits = qx/git log --decorate=no --oneline HEAD ^$upstream/;
-    if (@commits == 0) {
-        error "$Command: no changes between $upstream and $branch. Pushing would be pointless.";
-    } elsif (@commits > 1) {
-        error <<EOF unless $Options{force}--;
-push: you have more than one commit that you are about to push.
-      The outstanding commits are:
-
- @commits
-      If this is really what you want to do, please try again with --force.
-EOF
-    }
-
-    # A --noverbose option sets $Options{rebase} to '0'.
-    if ($is_clean && ($Options{rebase} || $Options{rebase} eq '' && $id =~ /\D/)) {
-        update_branch($upstream)
-            or error "$Command: Non-fast-forward pull. Please, merge or rebase your branch first.";
-        cmd "git rebase $upstream"
-            or error "$Command: please resolve this 'git rebase $upstream' and try again.";
-    }
-
-    my $refspec = 'HEAD:refs/' . ($Options{draft} ? 'draft' : 'for') . "/$upstream";
-
-    my @tags;
-    if (my $topic = $Options{topic}) {
-        push @tags, "topic=$topic";
-    } elsif ($id =~ /\D/) {
-        push @tags, "topic=$id";
-    }
-
-    my @reviewers = auto_reviewers($upstream);
-    if (my $reviewers = $Options{reviewer}) {
-        push @reviewers, split(/,/, join(',', @$reviewers));
-    }
-    if (@reviewers) {
-        push @tags, map("r=$_", @reviewers);
-    }
-
-    if (my $ccs = $Options{cc}) {
-        push @tags, map("cc=$_", split(/,/, join(',', @$ccs)));
-    }
-    if ($Options{submit}) {
-        push @tags, 'submit';
-    }
-    if (my $base = $Options{base}) {
-        push @tags, "base=$base";
-    }
-    if (@tags) {
-        $refspec .= '%';
-        $refspec .= join(',', @tags);
-    }
-
-    my $remote = config('remote');
-    cmd "git push $remote $refspec"
-        or error "$Command: Error pushing change.";
-
-    if ($is_clean && ! $Options{keep}) {
-        cmd "git checkout $upstream" and cmd "git branch -D $branch";
-    }
-
-    install_commit_msg_hook;
 
     return;
 };
@@ -1154,6 +1138,22 @@ $Commands{web} = sub {
     }
 
     cmd join(' ', qw/git web--browse/, @options, @urls);
+};
+
+$Commands{config} = sub {
+    my $config = grok_config;
+    my $git_gerrit = $config->{'git-gerrit'}
+        or return;
+    require Text::Table;
+    my $table = Text::Table->new();
+    foreach my $var (sort keys %$git_gerrit) {
+        foreach my $value (@{$git_gerrit->{$var}}) {
+            $table->add("git-gerrit.$var", $value);
+        }
+    }
+    print $table->table(), "\n";
+
+    return;
 };
 
 $Commands{version} = sub {
