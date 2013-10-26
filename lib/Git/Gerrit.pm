@@ -18,8 +18,8 @@ BEGIN {
 }
 use open ':std', $encoding;
 
-$App::GitGerrit::VERSION = 'unreleased';
-package App::GitGerrit;
+$Git::Gerrit::VERSION = 'unreleased';
+package Git::Gerrit;
 # ABSTRACT: A container for functions for the git-gerrit program
 
 use Pod::Usage;
@@ -27,7 +27,7 @@ use Getopt::Long qw(:config auto_version auto_help);
 use URI;
 use URI::Escape;
 
-# App::GitGerrit was converted from a script into a module following this:
+# Git::Gerrit was converted from a script into a module following this:
 # http://elliotlovesperl.com/2009/11/23/how-to-structure-perl-programs/
 use Exporter 'import';
 our @EXPORT_OK = qw/run/;
@@ -138,7 +138,7 @@ sub grok_config {
 I can't grok git-gerrit.project because git-gerrit.baseurl's path
 doesn't match git-gerrit.remote's path:
 
-* baseurl: 
+* baseurl:
 EOF
                 $config->{'git-gerrit'}{project} = [substr($path, length($prefix))];
             } else {
@@ -1158,7 +1158,7 @@ $Commands{config} = sub {
 
 $Commands{version} = sub {
     print "Perl version $^V\n";
-    print "git-gerrit version $App::GitGerrit::VERSION\n";
+    print "git-gerrit version $Git::Gerrit::VERSION\n";
     cmd "git version";
     my $baseurl = config('baseurl'); # die unless configured
     my $version = eval { gerrit(GET => '/config/server/version') };
@@ -1187,7 +1187,7 @@ __END__
 
 =head1 SYNOPSIS
 
-    use App::GitGerrit qw/run/;
+    use Git::Gerrit qw/run/;
     return 1 if caller;
     exit run();
 

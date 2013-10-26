@@ -6,4 +6,4 @@ use warnings;
 use lib 't';
 use Test::More tests => 1;
 
-BEGIN { use_ok 'App::GitGerrit'; }
+BEGIN { use_ok 'Git::Gerrit'; }

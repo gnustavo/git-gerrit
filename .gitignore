@@ -1,4 +1,4 @@
-/App-GitGerrit-*
+/Git-Gerrit-*
 /.build
 *.bak
 *.tar.gz
