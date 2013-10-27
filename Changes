@@ -2,6 +2,12 @@ Revision history for Git::Gerrit. -*- text -*-
 
 {{$NEXT}}
 
+0.019     2013-10-27 09:22:27 America/Sao_Paulo
+
+  [Changes]
+
+  - Another attempt to solve the CPAN indexing problem.
+
 0.018     2013-10-26 16:48:30 America/Sao_Paulo
 
   [Changes]
