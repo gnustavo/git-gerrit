@@ -7,7 +7,7 @@ use 5.010;
 use strict;
 use warnings;
 
-use Git::Gerrit qw/run/;
+use App::GitGerrit qw/run/;
 
 return 1 if caller;
 
@@ -720,7 +720,7 @@ but 1.8 is better integrated). Check it like this:
     git --version
 
 Git-gerrit is part of the
-L<Git::Gerrit|http://search.cpan.org/dist/Git::Gerrit/>
+L<App::GitGerrit|http://search.cpan.org/dist/App-GitGerrit/>
 distribution that you have to download from
 L<CPAN|http://search.cpan.org/> and install. There are a few ways to
 do it, depending on your environment. Here are a few tips:
@@ -730,7 +730,7 @@ do it, depending on your environment. Here are a few tips:
 If you build your own Perl, perhaps using
 L<perlbrew|http://perlbrew.pl/>, you know the drill:
 
-    cpanm Git::Gerrit
+    cpanm App::GitGerrit
 
 =head2 Debian, Ubuntu, etc.
 
@@ -745,7 +745,7 @@ packaged perl modules. These are the ones packaged with Ubuntu 12.04:
 The nifty C<cpanm> installer should take care of the remaining
 dependencies and of installing C<git-gerrit> for you like this:
 
-    sudo su -l -c "cpanm Git::Gerrit"
+    sudo su -l -c "cpanm App::GitGerrit"
 
 =head2 RedHat, CentOS, etc.
 
@@ -761,7 +761,7 @@ packaged perl modules. These are the ones packaged with CentOS 6.4:
 The verbose C<cpan> installer should take care of the remaining
 dependencies and of installing C<git-gerrit> for you like this:
 
-    sudo su -l -c "cpan Git::Gerrit"
+    sudo su -l -c "cpan App::GitGerrit"
 
 =head2 Windows
 
@@ -769,7 +769,7 @@ On Windows I suggest that you install L<Strawberry
 Perl|http://strawberryperl.com/>. Then, open a command line tool and
 type this:
 
-    cpanm Data::Util Git::Gerrit
+    cpanm Data::Util App::GitGerrit
 
 Note that on Windows you may have to invoke C<git-gerrit> directly as
 B<git-gerrit> and not through Git as B<git gerrit>. This is because
@@ -1022,8 +1022,8 @@ If you use bash and have L<bash completion enabled for
 Git|http://git-scm.com/book/en/Git-Basics-Tips-and-Tricks> you may
 also enable it for git-gerrit by sourcing the
 F<etc/bash_completion.d/git-gerrit> script that comes with
-L<Git::Gerrit> distribution. You may do it in your F<~/.bashrc> file
-like this:
+L<App::GitGerrit> distribution. You may do it in your F<~/.bashrc>
+file like this:
 
     source $PERL_ROOT/etc/bash_completion.d/git-gerrit
 

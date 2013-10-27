@@ -24,7 +24,7 @@ Gerrit's new REST API, taking advantage of its richer functionality.
 
 For the complete documentation, installation, and configuration
 instructions, please, read the
-L<git-gerrit|http://search.cpan.org/dist/Git-Gerrit/bin/git-gerrit>
+L<git-gerrit|http://search.cpan.org/dist/App-GitGerrit/bin/git-gerrit>
 script documentation.
 
 =head1 TODO
