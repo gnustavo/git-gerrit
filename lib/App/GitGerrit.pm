@@ -914,34 +914,23 @@ $Commands{upstream} = $Commands{up} = sub {
 };
 
 $Commands{'cherry-pick'} = $Commands{cp} = sub {
-    # The 'gerrit cherry-pick' sub-command passes all of its options,
-    # but --debug, to 'git cherry-pick'.
-    Getopt::Long::Configure('pass_through');
-    get_options();
+    get_options(
+        'edit',
+        'no-commit',
+    );
 
-    # Since we're passing through options, they're left at the start
-    # of @ARGV. So, we pop the change-id instead of shifting it.
-    my $id = pop @ARGV
-        or syntax_error "$Command: Missing CHANGE.";
+    my @args;
+    push @args, '--edit'      if $Options{edit};
+    push @args, '--no-commit' if $Options{'no-commit'};
 
-    # Make sure we haven't popped out an option.
-    $id !~ /^-/
-        or syntax_error "$Command: Missing CHANGE.";
+    @ARGV or syntax_error "$Command: Missing CHANGE.";
 
-    my $change = get_change($id);
+    my @change_branches = do {
+        local $Command = 'fetch';
+        $Commands{fetch}->();
+    };
 
-    my $project = config('project');
-    $change->{project} eq $project
-        or error "$Command: Change $id belongs to a different project ($change->{project}), not $project";
-
-    my ($revision) = values %{$change->{revisions}};
-
-    my ($url, $ref) = @{$revision->{fetch}{http}}{qw/url ref/};
-
-    cmd "git fetch $url $ref"
-        or error "$Command: can't git fetch $url $ref";
-
-    cmd join(' ', 'git cherry-pick', @ARGV, 'FETCH_HEAD');
+    cmd join(' ', 'git cherry-pick', @args, @change_branches);
 
     return;
 };

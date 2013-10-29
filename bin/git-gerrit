@@ -30,7 +30,7 @@ __END__
     git gerrit fetch       CHANGE*
     git gerrit checkout    CHANGE*
     git gerrit upstream    [--keep]
-    git gerrit cherry-pick OPTIONS* CHANGE
+    git gerrit cherry-pick [--edit] [--no-commit] CHANGE*
 
     git gerrit reviewer    [--add USERS] [--confirm] [--delete USERS] [CHANGE]
     git gerrit review      [--message TEXT] [--keep] [[LABEL]=VOTE]* [CHANGE]
@@ -510,16 +510,42 @@ both options are present the change-branch isn't deleted.
 
 =back
 
-=head2 git gerrit cherry-pick OPTIONS* CHANGE
+=head2 git gerrit cherry-pick [--edit] [--no-commit] CHANGE*
 
-The B<cherry-pick> sub-command fetches CHANGE from Gerrit and applies
-it to the current branch using the C<git cherry-pick> command. The
-CHANGE id is required and every OPTION (but --debug) is passed as-is
-to the C<git cherry-pick> command. You should read B<git-cherry-pick>
-manpage to know what options are available. Some of the most usefull
-ones are these: B<-e>, B<-x>, and B<-n>.
+The B<cherry-pick> sub-command invokes the B<fetch> sub-command to
+fetch a list of CHANGES from Gerrit and to create local
+change-branches for them. Then it applies all those changes to the
+current branch using the C<git cherry-pick> command.
+
+You may want to use this command to work on top of changes not
+submitted in Gerrit yet. You can cherry-pick them on top of a scratch
+branch and then continue to work on top of it while you wait for those
+changes to be reviewed.
 
 The shorter name C<cp> can also be used instead of C<cherry-pick>.
+
+=over
+
+=item B<--edit>
+
+If specified, this option is passed to C<git cherry-pick> to let you
+edit the commit message.
+
+=item B<--no-commit>
+
+If specified, this option is passed to C<git cherry-pick> to avoid
+performing any commits.
+
+"This flag applies the changes necessary to cherry-pick each named
+commit to your working tree and the index, without making any
+commit. In addition, when this option is used, your index does not
+have to match the HEAD commit. The cherry-pick is done against the
+beginning state of your index.
+
+This is useful when cherry-picking more than one commits' effect to
+your index in a row."
+
+=back
 
 =head2 git gerrit reviewer [--add USERS] [--confirm] [--delete USERS] [CHANGE]
 
