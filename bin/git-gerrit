@@ -231,6 +231,37 @@ amending like this:
 Oh, and if you want to comment on the new patchset, you have to go to
 Gerrit's web interface again.
 
+=head2 Working on top of changes pending revision
+
+You normally should strive to push changes independent of each other,
+because it's a pain to amend a change which others depend upon,
+because you have a cascading rebase problem. However, sometimes you
+want to start work on top of some changes already pushed to Gerrit but
+that haven't been submitted yet. Git-gerrit's C<cherry-pick> command
+can help you here. Suppose you pushed two changes (e.g. 101 and 102)
+that you need to have integrated in order to start working on another
+change. You may create a new change and cherry-pick those two changes
+over it, creating a commit over which you can work. Like this:
+
+    git gerrit new topic master
+    git gerrit cherry-pick 101 102
+
+Now you can start working on a future change and make another
+commit. At the end, the C<change/master/topic> change-branch will
+have two commits. First the one created by the cherry-pick and then
+the one you created by yourself. You don't want to push it to Gerrit,
+though, while those changes are still being reviewed. When they're
+finally submitted, you can pull them to C<master>, rebase your
+change-branch on top of C<master> and push it to Gerrit. Like so:
+
+    git checkout master
+    git pull
+    git checkout change/master/topic
+    git rebase --onto master HEAD^
+    git gerrit push
+
+This will discard the commit created by the cherry-pick.
+
 =head1 SUB-COMMANDS
 
 Each git-gerrit sub-command has its own set of options, described in
