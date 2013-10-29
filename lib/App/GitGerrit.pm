@@ -34,7 +34,7 @@ our @EXPORT_OK = qw/run/;
 # The $Command variable holds the name of the git-gerrit sub-command
 # that's been invoked. It's defined in the 'run' routine below.
 
-my $Command;
+our $Command;
 
 # The %Options hash is used to hold the command line options passed to
 # all git-gerrit subcommands. The --debug option is common to all of
@@ -849,13 +849,14 @@ EOF
     return;
 };
 
-$Commands{checkout} = $Commands{co} = sub {
+$Commands{fetch} = sub {
     get_options();
 
     grok_unspecified_change();
 
     my $branch;
     my $project = config('project');
+    my @change_branches;
     foreach my $id (@ARGV) {
         my $change = get_change($id);
 
@@ -870,8 +871,21 @@ $Commands{checkout} = $Commands{co} = sub {
 
         cmd "git fetch $url $ref:$branch"
             or error "$Command: Can't fetch $url";
+
+        push @change_branches, $branch;
     }
-    cmd "git checkout $branch";
+
+    return @change_branches;
+};
+
+$Commands{checkout} = $Commands{co} = sub {
+    my $last_change_branch = do {
+        local $Command = 'fetch';
+        my @change_branches = $Commands{fetch}->();
+        $change_branches[-1];
+    };
+
+    cmd "git checkout $last_change_branch";
 
     return;
 };
