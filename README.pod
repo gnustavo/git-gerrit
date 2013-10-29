@@ -97,6 +97,8 @@ does on its web interface.
 
 =item * Allow a list of changes as arguments for most commands
 
+=item * Provide global options to overide remote
+
 =back
 
 =head1 COPYRIGHT
