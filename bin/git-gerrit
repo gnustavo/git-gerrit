@@ -32,12 +32,12 @@ __END__
     git gerrit upstream    [--keep]
     git gerrit cherry-pick [--edit] [--no-commit] CHANGE*
 
-    git gerrit reviewer    [--add USERS] [--confirm] [--delete USERS] [CHANGE]
-    git gerrit review      [--message TEXT] [--keep] [[LABEL]=VOTE]* [CHANGE]
-    git gerrit abandon     [--message TEXT] [--keep] [CHANGE]
-    git gerrit restore     [--message TEXT] [CHANGE]
-    git gerrit revert      [--message TEXT] [CHANGE]
-    git gerrit submit      [--no-wait-for-merge] [--keep] [CHANGE]
+    git gerrit reviewer    [--add USERS] [--confirm] [--delete USERS] CHANGE*
+    git gerrit review      [--message TEXT] [--keep] [[LABEL]=VOTE]* CHANGE*
+    git gerrit abandon     [--message TEXT] [--keep] CHANGE*
+    git gerrit restore     [--message TEXT] CHANGE*
+    git gerrit revert      [--message TEXT] CHANGE*
+    git gerrit submit      [--no-wait-for-merge] [--keep] CHANGE*
 
     git gerrit web         [OPTIONS --] CHANGE*
 
@@ -578,18 +578,18 @@ your index in a row."
 
 =back
 
-=head2 git gerrit reviewer [--add USERS] [--confirm] [--delete USERS] [CHANGE]
+=head2 git gerrit reviewer [--add USERS] [--confirm] [--delete USERS] CHANGE*
 
 The B<reviewer> sub-command allows you to manage the list of reviewers
-for a CHANGE. You can omit the CHANGE argument if you're in a
-change-branch. In this case, you'll be managing the associated change
-reviewers.
+for one or more CHANGEs. You can omit the CHANGE argument if you're in
+a change-branch. In this case, you'll be managing the associated
+change reviewers.
 
 =over
 
 =item B<--add USERS>
 
-This option let's you invite new users to review the change. You can
+This option let's you invite new users to review the changes. You can
 pass a comma-separated list of users and even use more than one
 C<--add> option.
 
@@ -609,8 +609,8 @@ C<--confirm> option.
 
 =item B<--delete USERS>
 
-This option let's you remove reviewers from the change. You can pass a
-comma-separated list of users and even use more than one C<--delete>
+This option let's you remove reviewers from the changes. You can pass
+a comma-separated list of users and even use more than one C<--delete>
 option.
 
 You can use Gerrit groupnames in addition to usernames, if you want to
@@ -619,12 +619,15 @@ remove a group of reviewers.
 =back
 
 After adding and removing reviewers, C<git gerrit reviewers> shows the
-remaining list of reviewers of the CHANGE.
+remaining list of reviewers of the changes.
 
-=head2 git gerrit review [--message TEXT] [--keep] [[LABEL]=VOTE]* [CHANGE]
+=head2 git gerrit review [--message TEXT] [--keep] [[LABEL]=VOTE]* CHANGE*
 
-The B<review> sub-command allows you to review (duh!) a CHANGE by
-casting votes and adding messages to it.
+The B<review> sub-command allows you to review (duh!) one or more
+CHANGEs by casting votes and adding messages to them. If you want to
+be precise and add a message, you should be reviewing a single change
+at a time, but sometimes it's convenient to be able to cast the same
+vote to a set of changes.
 
 You can omit the CHANGE argument if you are in a change-branch, in
 which case you'll be reviewing the associated change. In this case,
@@ -655,10 +658,10 @@ This option avoids the change-branch deletion after a successful review.
 
 =back
 
-=head2 git gerrit submit [--no-wait-for-merge] [--keep] [CHANGE]
+=head2 git gerrit submit [--no-wait-for-merge] [--keep] CHANGE*
 
-The B<submit> sub-command submits an approved CHANGE, making Gerrit
-merge it into its remote upstream branch.
+The B<submit> sub-command submits one or more approved CHANGEs, making
+Gerrit merge them into their remote upstream branches.
 
 You can omit the CHANGE argument if you are in a change-branch, in
 which case you'll be submitting the associated change. In this case,
@@ -669,9 +672,9 @@ its upstream checked out.
 
 =item B<--no-wait-for-merge>
 
-By default git-gerrit will wait for the merge of the change into its
-branch to complete in Gerrit. This option tells it not to wait and
-finish as soon as it receives Gerrit's submit acknowledge.
+By default git-gerrit will wait for the merge of the changes into
+their branches to complete in Gerrit. This option tells it not to wait
+and finish as soon as it receives Gerrit's submit acknowledgement.
 
 =item B<--keep>
 
@@ -680,9 +683,9 @@ submission.
 
 =back
 
-=head2 git gerrit abandon [--message TEXT] [--keep] [CHANGE]
+=head2 git gerrit abandon [--message TEXT] [--keep] CHANGE*
 
-The B<abandon> sub-command abandons an unmerged CHANGE.
+The B<abandon> sub-command abandons one or more unmerged CHANGEs.
 
 You can omit the CHANGE argument if you are in a change-branch, in
 which case you'll be abandoning the associated change. In this case,
@@ -711,9 +714,9 @@ abandonment.
 
 =back
 
-=head2 git gerrit restore [--message TEXT] [CHANGE]
+=head2 git gerrit restore [--message TEXT] CHANGE*
 
-The B<restore> sub-command restores an abandoned CHANGE.
+The B<restore> sub-command restores one or more abandoned CHANGEs.
 
 You can omit the CHANGE argument if you are in a change-branch, in
 which case you'll be restoring the associated change.
@@ -731,11 +734,12 @@ invocation.
 
 =back
 
-=head2 git gerrit revert [--message TEXT] [CHANGE]
+=head2 git gerrit revert [--message TEXT] CHANGE*
 
-The B<revert> sub-command reverts an already merged CHANGE. Gerrit
-does so by creating, in the server, a new change with an inverted
-patch on top of the CHANGE remote upstream branch.
+The B<revert> sub-command reverts one or more already merged
+CHANGEs. Gerrit does so by creating, in the server, for each CHANGE, a
+new change with an inverted patch on top of the CHANGE remote upstream
+branch.
 
 You can omit the CHANGE argument if you are in a change-branch, in
 which case you'll be reverting the associated change.

@@ -570,16 +570,30 @@ sub auto_reviewers {
 
 # This routine is used by all sub-commands that accept zero or more
 # change ids. If @ARGV is empty it pushes into it the id of the change
-# associated with the current change-branch, if any.
+# associated with the current change-branch, if any. It returns a
+# boolean telling if the push has been made.
 
 sub grok_unspecified_change {
-    unless (@ARGV) {
+    if (@ARGV) {
+        return 0;
+    } else {
         my $id = current_change_id()
             or syntax_error "$Command: You have to be in a change-branch or specify at least one CHANGE.";
         $id =~ /^\d+$/
             or error "$Command: The change-branch you're in haven't been pushed yet.";
         @ARGV = ($id);
+        return 1;
     }
+}
+
+# This routine is used by the sub-commands that, when applied
+# successfully to the current change-branch, want to checkout its
+# upstream and remove the change-branch.
+
+sub checkout_upstream_and_delete_branch {
+    my $branch     = current_branch;
+    my ($upstream) = change_branch_info($branch);
+    cmd "git checkout $upstream" and cmd "git branch -D $branch";
 }
 
 ############################################################
@@ -800,7 +814,7 @@ $Commands{my} = sub {
 $Commands{show} = sub {
     get_options();
 
-    grok_unspecified_change();
+    grok_unspecified_change;
 
     foreach my $id (@ARGV) {
         my $change = gerrit_or_die(GET => "/changes/$id/detail");
@@ -852,7 +866,7 @@ EOF
 $Commands{fetch} = sub {
     get_options();
 
-    grok_unspecified_change();
+    grok_unspecified_change;
 
     my $branch;
     my $project = config('project');
@@ -942,35 +956,37 @@ $Commands{reviewer} = sub {
         'delete=s@',
     );
 
-    my $id = shift @ARGV || current_change_id()
-        or syntax_error "$Command: Missing CHANGE.";
+    grok_unspecified_change;
 
-    # First try to make all deletions
-    if (my $users = $Options{delete}) {
-        foreach my $user (split(/,/, join(',', @$users))) {
-            $user = uri_escape_utf8($user);
-            gerrit_or_die(DELETE => "/changes/$id/reviewers/$user");
+    foreach my $id (@ARGV) {
+        # First try to make all deletions
+        if (my $users = $Options{delete}) {
+            foreach my $user (split(/,/, join(',', @$users))) {
+                $user = uri_escape_utf8($user);
+                gerrit_or_die(DELETE => "/changes/$id/reviewers/$user");
+            }
         }
-    }
 
-    # Second try to make all additions
-    if (my $users = $Options{add}) {
-        my $confirm = $Options{confirm} ? 'true' : 'false';
-        foreach my $user (split(/,/, join(',', @$users))) {
-            gerrit_or_die(POST => "/changes/$id/reviewers", { reviewer => $user, confirm => $confirm});
+        # Second try to make all additions
+        if (my $users = $Options{add}) {
+            my $confirm = $Options{confirm} ? 'true' : 'false';
+            foreach my $user (split(/,/, join(',', @$users))) {
+                gerrit_or_die(POST => "/changes/$id/reviewers", { reviewer => $user, confirm => $confirm});
+            }
         }
+
+        # Finally, list current reviewers
+        my $reviewers = gerrit_or_die(GET => "/changes/$id/reviewers");
+
+        print "[$id]\n";
+        require Text::Table;
+        my %labels = map {$_ => undef} map {keys %{$_->{approvals}}} @$reviewers;
+        my @labels = sort keys %labels;
+        my $table = Text::Table->new('REVIEWER', map {"$_\n&num"} @labels);
+        $table->add($_->{name}, @{$_->{approvals}}{@labels})
+            foreach sort {$a->{name} cmp $b->{name}} @$reviewers;
+        print $table->table(), '-' x 60, "\n";
     }
-
-    # Finally, list current reviewers
-    my $reviewers = gerrit_or_die(GET => "/changes/$id/reviewers");
-
-    require Text::Table;
-    my %labels = map {$_ => undef} map {keys %{$_->{approvals}}} @$reviewers;
-    my @labels = sort keys %labels;
-    my $table = Text::Table->new('REVIEWER', map {"$_\n&num"} @labels);
-    $table->add($_->{name}, @{$_->{approvals}}{@labels})
-        foreach sort {$a->{name} cmp $b->{name}} @$reviewers;
-    print $table->table(), "\n";
 
     return;
 };
@@ -1000,20 +1016,14 @@ $Commands{review} = sub {
     error "$Command: You must specify a message or a vote to review."
         unless keys %review;
 
-    if (my $id = shift @ARGV) {
+    my $local_change = grok_unspecified_change;
+
+    foreach my $id (@ARGV) {
         gerrit_or_die(POST => "/changes/$id/revisions/current/review", \%review);
-    } else {
-        my $branch = current_branch;
-
-        my ($upstream, $id) = change_branch_info($branch)
-            or error "$Command: Missing CHANGE.";
-
-        gerrit_or_die(POST => "/changes/$id/revisions/current/review", \%review);
-
-        unless ($Options{keep}) {
-            cmd "git checkout $upstream" and cmd "git branch -D $branch";
-        }
     }
+
+    checkout_upstream_and_delete_branch
+        if $local_change && ! $Options{keep};
 
     return;
 };
@@ -1030,20 +1040,14 @@ $Commands{abandon} = sub {
         push @args, { message => $message };
     }
 
-    if (my $id = shift @ARGV) {
+    my $local_change = grok_unspecified_change;
+
+    foreach my $id (@ARGV) {
         gerrit_or_die(POST => "/changes/$id/abandon", @args);
-    } else {
-        my $branch = current_branch;
-
-        my ($upstream, $id) = change_branch_info($branch)
-            or error "$Command: Missing CHANGE.";
-
-        gerrit_or_die(POST => "/changes/$id/abandon", @args);
-
-        unless ($Options{keep}) {
-            cmd "git checkout $upstream" and cmd "git branch -D $branch";
-        }
     }
+
+    checkout_upstream_and_delete_branch
+        if $local_change && ! $Options{keep};
 
     return;
 };
@@ -1051,16 +1055,17 @@ $Commands{abandon} = sub {
 $Commands{restore} = sub {
     get_options('message=s');
 
-    my $id = shift @ARGV || current_change_id()
-        or syntax_error "$Command: Missing CHANGE.";
-
-    my @args = ("/changes/$id/restore");
+    my @args;
 
     if (my $message = get_message) {
         push @args, { message => $message };
     }
 
-    gerrit_or_die(POST => @args);
+    grok_unspecified_change;
+
+    foreach my $id (@ARGV) {
+        gerrit_or_die(POST => "/changes/$id/restore", @args);
+    }
 
     return;
 };
@@ -1068,16 +1073,17 @@ $Commands{restore} = sub {
 $Commands{revert} = sub {
     get_options('message=s');
 
-    my $id = shift @ARGV || current_change_id()
-        or syntax_error "$Command: Missing CHANGE.";
-
-    my @args = ("/changes/$id/revert");
+    my @args;
 
     if (my $message = get_message) {
         push @args, { message => $message };
     }
 
-    gerrit_or_die(POST => @args);
+    grok_unspecified_change;
+
+    foreach my $id (@ARGV) {
+        gerrit_or_die(POST => "/changes/$id/revert", @args);
+    }
 
     return;
 };
@@ -1091,20 +1097,14 @@ $Commands{submit} = sub {
     my @args;
     push @args, { wait_for_merge => 'true' } unless $Options{'no-wait-for-merge'};
 
-    if (my $id = shift @ARGV) {
+    my $local_change = grok_unspecified_change;
+
+    foreach my $id (@ARGV) {
         gerrit_or_die(POST => "/changes/$id/submit", @args);
-    } else {
-        my $branch = current_branch;
-
-        my ($upstream, $id) = change_branch_info($branch)
-            or error "$Command: Missing CHANGE.";
-
-        gerrit_or_die(POST => "/changes/$id/submit", @args);
-
-        unless ($Options{keep}) {
-            cmd "git checkout $upstream" and cmd "git branch -D $branch";
-        }
     }
+
+    checkout_upstream_and_delete_branch
+        if $local_change && ! $Options{keep};
 
     return;
 };
@@ -1129,7 +1129,7 @@ $Commands{web} = sub {
         }
     }
 
-    grok_unspecified_change();
+    grok_unspecified_change;
 
     # Grok the URLs of each change
     my @urls;
