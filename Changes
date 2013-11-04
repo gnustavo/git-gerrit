@@ -2,6 +2,24 @@ Revision history for Git::Gerrit. -*- text -*-
 
 {{$NEXT}}
 
+0.021     2013-11-04 21:15:31 America/Sao_Paulo
+
+  [New features]
+
+  - The new 'git gerrit fetch' sub-command fetches a list of changes
+    and creates local change-branches.
+
+  [Changes]
+
+  - The following commands now accept a list of changes as arguments
+    instead of a single one: cherry-pick, reviewer, review, abandon,
+    restore, revert, and submit.
+
+  [Documentation]
+
+  - The WORKFLOW section shows how the cherry-pick sub-command can be
+    useful.
+
 0.020     2013-10-27 10:18:17 America/Sao_Paulo
 
   [Changes]
