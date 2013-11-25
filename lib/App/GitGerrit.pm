@@ -667,7 +667,7 @@ push: Can't push change because git-status is dirty.
       If this is really what you want to do, please try again with --force.
 EOF
 
-    my @commits = qx/git log --decorate=no --oneline HEAD ^$upstream/;
+    my @commits = qx/git log --decorate=no --first-parent --oneline HEAD ^$upstream/;
     if (@commits == 0) {
         error "$Command: no changes between $upstream and $branch. Pushing would be pointless.";
     } elsif (@commits > 1) {
@@ -680,8 +680,11 @@ push: you have more than one commit that you are about to push.
 EOF
     }
 
+    # Grok the list of parent commits to see if it's a merge commit.
+    my @parents = split / /, qx/git log --pretty='format:%p' -1/;
+
     # A --noverbose option sets $Options{rebase} to '0'.
-    if ($is_clean && ($Options{rebase} || $Options{rebase} eq '' && $id =~ /\D/)) {
+    if ($is_clean && (@parents < 2) && ($Options{rebase} || $Options{rebase} eq '' && $id =~ /\D/)) {
         update_branch($upstream)
             or error "$Command: Non-fast-forward pull. Please, merge or rebase your branch first.";
         cmd "git rebase $upstream"

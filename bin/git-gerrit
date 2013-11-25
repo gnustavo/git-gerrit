@@ -358,8 +358,7 @@ amend them later, having multiple commits may require rebasing
 dependent commits, which is a more complex operation and clutters the
 review history of the change.
 
-If git status isn't clean, the change-branch isn't rebased and the
-upstream isn't checked out.
+If git status isn't clean, the the upstream isn't checked out.
 
 =item B<--[no]rebase>
 
@@ -369,10 +368,13 @@ upstream. This is to make sure you're pushing a change based on the
 newest project state. If, by any reason, you don't want to have it
 rebased, use the C<--norebase> option.
 
-A change-branch that has been checked out (one ending in an ID) 't
+A change-branch that has been checked out (one ending in an ID) isn't
 rebased by default, because this would clutter the change review
 history in Gerrit. If you want it rebased nonetheless, use the
 C<--rebase> option.
+
+If git status isn't clean or if the commit being pushed is a merge
+commit it's not rebased.
 
 =item B<--draft>
 
