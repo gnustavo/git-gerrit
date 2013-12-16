@@ -536,7 +536,7 @@ sub auto_reviewers {
                             }
                         } else {
                             unless ($paths) {
-                                $paths = [qx/git diff --name-only HEAD ^$upstream/];
+                                $paths = [qx/git diff --name-only ${upstream}..HEAD/];
                                 chomp @$paths;
                             }
                             if ($op eq '=') {
@@ -667,7 +667,7 @@ push: Can't push change because git-status is dirty.
       If this is really what you want to do, please try again with --force.
 EOF
 
-    my @commits = qx/git log --decorate=no --first-parent --oneline HEAD ^$upstream/;
+    my @commits = qx/git log --decorate=no --first-parent --oneline ${upstream}..HEAD/;
     if (@commits == 0) {
         error "$Command: no changes between $upstream and $branch. Pushing would be pointless.";
     } elsif (@commits > 1) {
