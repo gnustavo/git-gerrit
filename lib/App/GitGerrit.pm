@@ -952,6 +952,16 @@ $Commands{'cherry-pick'} = $Commands{cp} = sub {
     return;
 };
 
+$Commands{rebase} = sub {
+    get_options();
+
+    my ($upstream, $id) = change_branch_info(current_branch)
+        or error "$Command: You must be in a change branch to invoke rebase.";
+
+    cmd "git rebase $upstream"
+        or error "$Command: please resolve this 'git rebase $upstream' and try again.";
+};
+
 $Commands{reviewer} = sub {
     get_options(
         'add=s@',

@@ -32,6 +32,8 @@ __END__
     git gerrit upstream    [--keep]
     git gerrit cherry-pick [--edit] [--no-commit] CHANGE*
 
+    git gerrit rebase
+
     git gerrit reviewer    [--add USERS] [--confirm] [--delete USERS] CHANGE*
     git gerrit review      [--message TEXT] [--keep] [[LABEL]=VOTE]* CHANGE*
     git gerrit abandon     [--message TEXT] [--keep] CHANGE*
@@ -579,6 +581,16 @@ This is useful when cherry-picking more than one commits' effect to
 your index in a row."
 
 =back
+
+=head2 git gerrit rebase
+
+The B<rebase> sub-command simply rebases the current change-branch
+onto its upstream. It's a shortcut for C<git rebase UPSTREAM> but
+arguably easier because you don't have to remember the upstream's
+name.
+
+An error message is produced if it's invoked when HEAD isn't pointing
+to a change-branch.
 
 =head2 git gerrit reviewer [--add USERS] [--confirm] [--delete USERS] CHANGE*
 
