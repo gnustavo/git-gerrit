@@ -29,7 +29,7 @@ __END__
 
     git gerrit fetch       CHANGE*
     git gerrit checkout    CHANGE*
-    git gerrit upstream    [--keep]
+    git gerrit upstream    [--keep] [--delete]
     git gerrit cherry-pick [--edit] [--no-commit] CHANGE*
 
     git gerrit rebase
