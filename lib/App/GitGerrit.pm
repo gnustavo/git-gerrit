@@ -886,7 +886,7 @@ $Commands{fetch} = sub {
 
         $branch = "change/$change->{branch}/$change->{_number}";
 
-        cmd "git fetch $url $ref:$branch"
+        cmd "git fetch --force $url $ref:$branch"
             or error "$Command: Can't fetch $url";
 
         push @change_branches, $branch;
