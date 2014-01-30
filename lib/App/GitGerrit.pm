@@ -691,7 +691,7 @@ EOF
             or error "$Command: please resolve this 'git rebase $upstream' and try again.";
     }
 
-    my $refspec = 'HEAD:refs/' . ($Options{draft} ? 'draft' : 'for') . "/$upstream";
+    my $refspec = 'HEAD:refs/' . ($Options{draft} ? 'drafts' : 'for') . "/$upstream";
 
     my @tags;
     if (my $topic = $Options{topic}) {
