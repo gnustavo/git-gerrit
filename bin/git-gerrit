@@ -384,6 +384,9 @@ This option makes git-gerrit push the change-branch to
 C<refs/drafts/UPSTREAM> instead of to C<refs/for/UPSTREAM>, creating a
 draft change in Gerrit.
 
+This option disables the invitation of automatic reviewers because
+drafts aren't usually in good shape for formal review.
+
 =item B<--submit>
 
 This option tells Gerrit to L<auto-merge the change during
