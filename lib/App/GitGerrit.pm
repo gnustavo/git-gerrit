@@ -442,6 +442,37 @@ sub query_changes {
     return $changes;
 }
 
+# The my_changes routine queries Gerrit about every open change that is owned
+# by me or of which I'm a reviewer. It passes the option ALL_REVISIONS to the
+# query to get information about all patchsets of each change. The result is
+# cached in a file called $GIT_DIR/git-gerrit.cache. The optional argument
+# $offline, if true, reuses the cached information avoiding the interaction
+# with Gerrit.
+
+sub my_changes {
+    my ($offline) = @_;
+
+    my $changes;
+
+    my $cache = cat_git_dir('git-gerrit.cache');
+
+    if ($offline && -r $cache) {
+        unless ($changes = do $cache) {
+            error "Couldn't parse offline cache $cache: $@" if $@;
+            error "Couldn't do offline cache $cache: $!"    unless defined $changes;
+            error "Couldn't run offline cache $cache";
+        }
+    } else {
+        $changes = query_changes(['is:open+AND+(owner:self+OR+reviewer:self)'], ['o=ALL_REVISIONS']);
+
+        require Data::Dumper;
+        open my $fh, '>', $cache or error "Can't create $cache: $!\n";
+        print $fh Data::Dumper->new([$changes])->Indent(1)->Dump();
+    }
+
+    return $changes;
+}
+
 # The get_change routine returns the description of a change
 # identified by $id. An optional boolean second argument ($allrevs)
 # tells if the change description should contain a description of all
@@ -596,6 +627,25 @@ sub grok_unspecified_change {
     }
 }
 
+# This routine uses the command 'git show-ref' to grok all local change
+# branches and tags already associated with a Gerrit change, i.e., not
+# counting change branches not pushed yet.. It returns a reference to a hash
+# containing two keys. The 'heads' key points to a hash mapping every change
+# branch to the SHA-1 it's currently pointing to. The 'tags' key points to a
+# hash mapping every change tag to the SHA-1 it points to.
+sub git_change_refs {
+    # Map all change branches and tags to their respective SHA-1.
+    my %refs = (
+        heads => {},
+        tags  => {},
+    );
+    foreach (qx/git show-ref --heads --tags/) {
+        if (my ($sha1, $ref, $name) = m:^([0-9a-f]{40}) refs/(heads|tags)/(change/.*/[0-9]+)$:) {
+            $refs{$ref}{$name} = $sha1;
+        }
+    }
+    return \%refs;
+}
 
 # This routine returns the result of git-status with suitable options. It's
 # useful to check if the working tree is dirty before performing any other git
@@ -896,6 +946,182 @@ $Commands{fetch} = sub {
     return @change_branches;
 };
 
+$Commands{update} = $Commands{up} = sub {
+    $Command = 'update';
+
+    $Options{prune} = 1;        # true by default
+    get_options qw( patchsets prune! offline );
+
+    # Map all existing change branches and tags to their respective SHA-1.
+    my $refs = git_change_refs;
+
+    # Forget about change tags unless we got the --patchsets option.
+    $refs->{tags} = {} unless $Options{patchsets};
+
+    # Grok every open change having me as owner or reviewer.
+    my $changes = my_changes($Options{offline});
+
+    # Refresh all change refs and corresponding upstream branches
+    my (%fetch, %upstreams);
+    my $current_branch = current_branch;
+    foreach my $change (@{$changes->[0]}) {
+        my $id = $change->{_number};
+
+        my $upstream = $change->{branch};
+        $upstreams{$upstream} = undef;
+
+        my $ref = "change/$upstream/$id";
+
+        # Check the change branch
+        if (my $sha = delete $refs->{heads}{$ref}) {
+            # The change branch exists already.
+            if ($sha eq $change->{current_revision}) {
+                debug "$Command: branch $ref is up-to-date.";
+            } elsif (exists $change->{revisions}{$sha}) {
+                if ($ref eq $current_branch) {
+                    if (git_status eq '') {
+                        debug "$Command: $ref is the current branch and must be reset to the current patchset.";
+                        cmd "git reset --hard $change->{current_revision}";
+                    } else {
+                        debug "$Command: $ref is the current branch and should be reset to the current patchset"
+                            . "    but your working tree is dirty, so it will be left unchanged.";
+                    }
+                } else {
+                    debug "$Command: branch $ref must be updated.";
+                    cmd "git branch -f $ref $change->{current_revision}";
+                }
+            } else {
+                debug "$Command: branch $ref has been amended locally so it will be left unchanged.";
+            }
+        } else {
+            # The change branch doesn't exist yet. Let's remember to fetch it.
+            debug "$Command: $ref must be fetched.";
+            $fetch{heads}{$ref} = $change->{revisions}{$change->{current_revision}}{fetch}{http}{ref};
+        }
+
+        # Check the change tags
+        if ($Options{patchsets}) {
+            while (my ($sha, $rev) = each %{$change->{revisions}}) {
+                my $patch = "$ref/$rev->{_number}";
+                if (delete $refs->{tags}{$patch}) {
+                    debug "$Command: tag $patch is already fetched.";
+                } else {
+                    # The change tag doesn't exist yet. Let's remember to fetch it.
+                    debug "$Command: tag $patch must be fetched.";
+                    $fetch{tags}{$patch} = $rev->{fetch}{http}{ref};
+                }
+            }
+        }
+    }
+
+    # We'll update all change branches, change tags, and upstream branches
+    # with a single git-fetch.  This array will contain all refspecs to pass
+    # to git fetch below.
+    my @refspecs;
+
+    # Grok refspecs for missing change branches and tags
+    foreach my $ref (qw/heads tags/) {
+        while (my ($lpath, $rpath) = each %{$fetch{$ref}}) {
+            push @refspecs, "$rpath:refs/$ref/$lpath"
+        }
+    }
+
+    # Grok refspecs for upstreams
+    my $should_pull;
+    foreach my $upstream (keys %upstreams) {
+        if ($upstream eq $current_branch) {
+            # We can't update the current branch with a git-fetch. So, we'll
+            # remember to do a git-pull later.
+            $should_pull = 1;
+        } else {
+            push @refspecs, "$upstream:$upstream";
+        }
+    }
+
+    cmd join(' ', "git fetch --force", config('remote'), @refspecs) if @refspecs;
+
+    # Prune change branches and tags that don't have corresponding open
+    # changes in Gerrit.
+    if ($Options{prune}) {
+        cmd join(' ', qw/git tag -d/, keys %{$refs->{tags}}) if keys %{$refs->{tags}};
+
+        if (! $Options{offline} && keys %{$refs->{heads}}) {
+            # We have to make sure none of these change branches were amended
+            # locally. So, we query Gerrit for their SHA-1's.
+            my $change_branches = query_changes([join '+', map {"commit:$_"} values %{$refs->{heads}}]);
+
+            # Collect in @prune the change branches that aren't amended.
+            my @prune;
+            foreach my $change (@{$change_branches->[0]}) {
+                if (my $prune = delete $refs->{heads}{"change/$change->{branch}/$change->{_number}"}) {
+                    push @prune, $prune;
+                }
+            }
+
+            cmd join(' ', qw/git branch -D/, @prune) if @prune;
+
+            # Any change branch left in %{$refs->{heads}} must have been
+            # amended locally.
+            foreach my $branch (keys %{$refs->{heads}}) {
+                debug "$Command: branch $branch has been amended locally so it will be left unchanged.";
+            }
+        }
+    }
+
+    # Pull the current branch (if it's an upstream branch) at the end because
+    # the command can fail and the user should notice the failure.
+    cmd 'git pull --ff-only' if $should_pull;
+
+    # List all change branches and change tags
+    cmd 'git branch --list "change/*"';
+    cmd 'git tag    --list "change/*"' if $Options{patchsets};
+
+    return;
+};
+
+$Commands{prune} = sub {
+    $Options{patchsets} = 1;    # negatable option, true by default
+    get_options qw( patchsets! offline );
+
+    # Map all change branches and tags to their respective SHA-1.
+    my $refs = git_change_refs;
+
+    # Forget about change tags unless we got the --nopatchsets option.
+    $refs->{tags} = {} unless $Options{patchsets};
+
+    # Grok every open change having me as owner or reviewer.
+    my $changes = my_changes($Options{offline});
+
+    # Remember all change branches and tags that are up-to-date to delete them
+    # later.
+    foreach my $change (@{$changes->[0]}) {
+        my $id = $change->{_number};
+
+        my $ref = "change/$change->{branch}/$id";
+
+        # Check the change branch
+        if (exists $refs->{heads}{$ref}) {
+            # The change branch exists.
+            if ($refs->{heads}{$ref} eq $change->{current_revision}) {
+                debug "$Command: $ref is up-to-date and will be deleted.";
+            } elsif (exists $change->{revisions}{$refs->{heads}{$ref}}) {
+                debug "$Command: $ref is outdated and will be deleted.";
+            } else {
+                debug "$Command: $ref has been amended locally so we won't delete it.";
+                delete $refs->{heads}{$ref};
+            }
+        }
+    }
+
+    # Prune change branches and tags that are up-to-date.
+    cmd join(' ', qw/git tag -d/,    keys %{$refs->{tags}})  if keys %{$refs->{tags}};
+    cmd join(' ', qw/git branch -D/, keys %{$refs->{heads}}) if keys %{$refs->{heads}};
+
+    # FIXME: We're not deleting change branches not associated with open changes yet!
+
+    return;
+};
+
 $Commands{checkout} = $Commands{co} = sub {
     $Command = 'checkout';
 
@@ -932,7 +1158,7 @@ $Commands{upstream} = $Commands{ups} = sub {
     return;
 };
 
-$Commands{'cherry-pick'} = $Commands{cp} = sub {
+$Commands{'cherry-pick'} = $Commands{pick} = sub {
     $Command = 'cherry-pick';
 
     get_options qw( edit no-commit );

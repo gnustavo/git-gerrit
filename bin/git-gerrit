@@ -23,6 +23,9 @@ __END__
     git gerrit push        [--prune] [--force] [--[no]rebase] [--draft] [--submit] \
                            [--base BASE] [--topic TOPIC] [--reviewer USER] [--cc USER]
 
+    git gerrit update      [--patchsets] [--[no]prune] [--offline]
+    git gerrit prune       [--[no]patchsets] [--offline]
+
     git gerrit query       [--limit LIMIT] [--verbose] [[NAME=]QUERY]*
     git gerrit my          [--limit LIMIT] [--verbose] [changes|closed|drafts|watched|starred]
     git gerrit show        CHANGE*
@@ -66,10 +69,10 @@ Git-gerrit provides three main features:
 B<git gerrit push> sub-command, avoiding the need to type remote names
 and long refspecs.
 
-=item * A standard way to map Gerrit changes into local branches,
-referred to as "change-branches", making it easier to manage several
-changes simultaneously and to perform the fetch-amend-push review
-cycle.
+=item * A standard way to map Gerrit changes into local branches, referred to
+as "change-branches", and Gerrit patchsets into local tags, referred to as
+"change-tags", making it easier to manage several changes simultaneously and
+to perform the fetch-amend-push review cycle.
 
 =item * Several sub-commands to query and inspect Gerrit changes and
 also to review and submit them.
@@ -147,13 +150,23 @@ we call a change-branch. We refer to BRANCH as the change-branch's
 C<upstream>, because it is the branch from which the change-branch
 derives and to which it will be ultimately merged back again.
 
-When C<git gerrit fetch CHANGE> fetches an existing change it creates
-a change-branch named B<change/BRANCH/ID>, where BRANCH is the name of
-the branch associated with the change, and ID is its legacy numeric
-change ID.
+When C<git gerrit update> or C<git gerrit fetch CHANGE> fetches an existing
+change it creates a change-branch named B<change/BRANCH/ID>, where BRANCH is
+the name of the branch associated with the change, and ID is its legacy
+numeric change ID.
 
 So, you should reserve the C<change/> top-level branch name for the
 change-branches managed by git-gerrit.
+
+=item B<change-tag>
+
+A C<change-tag> is a local "lightweight" tag with a special name that
+git-gerrit creates and maps to a specific patchset of a Gerrit change.
+
+When C<git gerrit update --patchsets> fetches an existing change it creates
+one change-tag to each of the change's patchset. These change-tags are named
+B<change/BRANCH/ID/N>, where BRANCH is the name of the branch associated with
+the change, ID is its legacy numeric change ID, and N is the patchset number.
 
 =back
 
@@ -188,31 +201,42 @@ do something like this:
     git checkout master
     git branch -D change/master/topic
 
+=head2 Studying changes
+
+Usually you're want to study open changes that you own or that you've been
+invited to revise. The easiest way to get them all is this:
+
+    git gerrit update
+
+This command queries Gerrit to grok all those open changes and fetch them all
+at once, creating a change-branch for each of them and listing them. This way
+you can easily study them using 'git show', e.g.:
+
+    git show change/master/1234
+
+Without git-gerrit you have to study the changes in the web interface or at
+least get there the Git command to fetch the change before you can study it.
+
 =head2 Reviewing a change
 
-    git gerrit my changes
-    git gerrit checkout 1234
-    git show
+    git checkout change/master/1234
     git gerrit review =-1
 
-First, if you don't know the C<{change-id}> of the change you want to
-review, you ask C<my changes> to get a list of the changes still
-unreviewed. Then you checkout one change and study it. Finally, you
-record your review and gets back to the change's upstream branch.
+If you're in the change-branch associated with the change you can use 'git
+show' to study it. Then, you record your review with the 'review' sub-command.
 
 Without git-gerrit you'd have to perform the review using Gerrit's web
 interface.
 
 =head2 Amending a change
 
-    git gerrit checkout 1234
+    git checkout change/master/1234
     # edit
     git commit --amend
     git gerrit push
 
-To amend a change you first check it out to a local
-change-branch. Then you can amend it and, finally, push it as another
-patch-set to Gerrit, checking out upstream again.
+To amend a change you first checkout its change-branch. Then you can amend it
+and, finally, push it as another patchset to Gerrit.
 
 What if you want to make a comment on your new patchset? No problem,
 simply change the last line above for this:
@@ -234,31 +258,29 @@ Gerrit's web interface again.
 
 =head2 Working on top of changes pending revision
 
-You normally should strive to push changes independent of each other,
-because it's a pain to amend a change which others depend upon,
-because you have a cascading rebase problem. However, sometimes you
-want to start work on top of some changes already pushed to Gerrit but
-that haven't been submitted yet. Git-gerrit's C<cherry-pick> command
-can help you here. Suppose you pushed two changes (e.g. 101 and 102)
-that you need to have integrated in order to start working on another
-change. You may create a new change and cherry-pick those two changes
-over it, creating a commit over which you can work. Like this:
+You normally should try to push changes independent of each other, because
+it's a pain to amend a change upon which others depend, because you have a
+cascading rebase problem. However, sometimes you want to start work on top of
+some changes already pushed to Gerrit but that haven't been submitted
+yet. Git-gerrit's C<cherry-pick> command can help you here. Suppose you pushed
+two changes (e.g. 101 and 102) that you need to have integrated in order to
+start working on another change. You may create a new change and cherry-pick
+those two changes over it, creating a commit over which you can work. Like
+this:
 
     git gerrit new topic master
     git gerrit cherry-pick 101 102
 
-Now you can start working on a future change and make another
-commit. At the end, the C<change/master/topic> change-branch will
-have two commits. First the one created by the cherry-pick and then
-the one you created by yourself. You don't want to push it to Gerrit,
-though, while those changes are still being reviewed. When they're
-finally submitted, you can pull them to C<master>, rebase your
-change-branch on top of C<master> and push it to Gerrit. Like so:
+Now you can start working on a future change and make another commit. At the
+end, the C<change/master/topic> change-branch will have two commits. First the
+one created by the cherry-pick and then the one you created by yourself. You
+don't want to push it to Gerrit, though, while those changes are still being
+reviewed. When they're finally submitted, you can update to pull them to
+C<master>, rebase your change-branch on top of C<master> and push it to
+Gerrit. Like so:
 
-    git checkout master
-    git pull
-    git checkout change/master/topic
-    git rebase --onto master HEAD^
+    git gerrit update
+    git rebase --onto master change/master/topic^ change/master/topic
     git gerrit push
 
 This will discard the commit created by the cherry-pick.
@@ -315,10 +337,10 @@ change is based on the change-branch's upstream branch.
 
 =item B<--update>
 
-This option makes git-gerrit update BRANCH before creating the
-change-branch by fetching from Gerrit and fast-forward-merging it with
-its remote branch. This way you guarantee to start a change on top of
-the newest state of your project, which is usually the right thing to do.
+This option makes git-gerrit update BRANCH before creating the change-branch
+by invoking the C<update> sub-command. This way you guarantee to start a
+change on top of the newest state of your project, which is usually the right
+thing to do.
 
 =item B<--onto COMMIT>
 
@@ -426,6 +448,59 @@ This option let's you notify a list of users about your change.
 
 USERS is a colon-separated list of usernames. You may also pass this
 option more than once, to invite more than a set of users.
+
+=back
+
+=head2 git gerrit update [--patchsets] [--[no]prune] [--offline]
+
+The B<update> sub-command creates and/or updates the local change-branches
+associated with all open changes in Gerrit that you own or that you are a
+reviewer of. It also deletes (i.e., prunes) any existing change-branch not
+associated with an open change in Gerrit. At the end it lists all
+change-branches in your repository.
+
+The shorter name C<up> can also be used instead of C<update>.
+
+=over
+
+=item B<--patchsets>
+
+This options makes the B<update> sub-command also create the local change-tags
+associated with all patchsets of the changes. It also deletes (i.e., prunes)
+any existing change-tag not associated with an open change in Gerrit. At the
+end it lists all change-tags too.
+
+=item B<--[no]prune>
+
+By default, existing change-branches and change-tags not associated with any
+open change are pruned, unless you pass the C<--noprune> option.
+
+=item B<--offline>
+
+This avoids querying Gerrit and reuses the cached response from the previous
+update. Since querying Gerrit can take a few seconds you may not want to wait
+everytime. This may be useful if you invoked C<git gerrit prune> and changed
+your mind.
+
+=back
+
+=head2 git gerrit prune [--[no]patchsets] [--offline]
+
+The C<prune> sub-command prunes (i.e., deletes) every change-branch that
+hasn't been changed locally, i.e., that points to any of the patchsets of the
+corresponding change. It also prunes all change-tags associated with open
+changes.
+
+=over
+
+=item B<--[no]patchsets]>
+
+Use the C<--nopatchsets> option to don't prune change-tags.
+
+=item B<--offline>
+
+Use this option to avoid querying Gerrit and reuse the cached response from
+the previous update/prune command.
 
 =back
 
@@ -585,7 +660,7 @@ submitted in Gerrit yet. You can cherry-pick them on top of a scratch
 branch and then continue to work on top of it while you wait for those
 changes to be reviewed.
 
-The shorter name C<cp> can also be used instead of C<cherry-pick>.
+The shorter name C<pick> can also be used instead of C<cherry-pick>.
 
 =over
 
