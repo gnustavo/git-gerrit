@@ -803,7 +803,6 @@ my %StandardQueries = (
     changes => [
         'Outgoing reviews=is:open+owner:self',
         'Incoming reviews=is:open+reviewer:self+-owner:self',
-        'Recently closed=is:closed+owner:self+-age:1mon',
     ],
     drafts  => ['Drafts=is:draft'],
     watched => ['Watched changes=is:watched+status:open'],
