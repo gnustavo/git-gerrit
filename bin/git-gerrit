@@ -172,7 +172,7 @@ Suppose you want to create a new change on master:
 
 First you create a new change-branch for your new change. If you're
 already in master you don't need to mention it on the first line. Then
-you make your change editing your working area and committing. When
+you make your change editing your working tree and committing. When
 you're done, simply tell git-gerrit to push your change and get back
 to master.
 
@@ -300,7 +300,7 @@ and a single dash is sufficient, even for long option names.
 
 The C<new> sub-command creates a new change-branch off of BRANCH
 called C<change/BRANCH/TOPIC> and checks it out for you to start
-making changes to your working area.
+making changes to your working tree.
 
 The TOPIC name must contain at least one non-digit character so that
 it's clear that this is a new change-branch, not yet pushed to
@@ -329,7 +329,7 @@ yet.
 
 =back
 
-You will be warned if your working area is dirty, as this is sometimes
+You will be warned if your working tree is dirty, as this is sometimes
 a mistake.
 
 =head2 git gerrit push OPTIONS*
@@ -337,7 +337,7 @@ a mistake.
 The C<push> sub-command should be invoked to push a change-branch to
 Gerrit's C<refs/for/> branch associated with its upstream branch. It
 should be invoked when you have the change-branch checked out in your
-working area.
+working tree.
 
 When a new change-branch is pushed it creates a Gerrit change
 associated with the TOPIC in its name, as created by C<git gerrit new>
@@ -355,7 +355,7 @@ with the C<git gerrit checkout> sub-command.
 =item B<--keep>
 
 This option tells git-gerrit not to checkout the upstream and not to
-delete the change-branch, keeping your working area intact.
+delete the change-branch, keeping your working tree intact.
 
 =item B<--force>
 
