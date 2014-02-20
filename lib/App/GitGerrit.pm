@@ -826,7 +826,10 @@ $Commands{my} = sub {
         push @ARGV, @{$StandardQueries{changes}};
     }
 
-    $Commands{query}();
+    {
+        local $Command = 'query';
+        $Commands{query}();
+    }
 
     return;
 };
@@ -913,6 +916,8 @@ $Commands{fetch} = sub {
 };
 
 $Commands{checkout} = $Commands{co} = sub {
+    $Command = 'checkout';
+
     my $last_change_branch = do {
         local $Command = 'fetch';
         my @change_branches = $Commands{fetch}->();
@@ -925,6 +930,8 @@ $Commands{checkout} = $Commands{co} = sub {
 };
 
 $Commands{upstream} = $Commands{up} = sub {
+    $Command = 'upstream';
+
     get_options(
         'keep',
         'delete',
@@ -948,6 +955,8 @@ $Commands{upstream} = $Commands{up} = sub {
 };
 
 $Commands{'cherry-pick'} = $Commands{cp} = sub {
+    $Command = 'cherry-pick';
+
     get_options(
         'edit',
         'no-commit',
