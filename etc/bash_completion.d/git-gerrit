@@ -11,7 +11,7 @@ _git_gerrit ()
 	    __gitcomp "$subcommands"
 	fi
 
-        gopts='--debug --help'
+        gopts='--debug --help --noop'
 
 	case "$subcommand" in
             new)

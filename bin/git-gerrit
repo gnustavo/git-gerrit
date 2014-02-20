@@ -284,6 +284,13 @@ B<CMD:> and Gerrit REST calls with B<GERRIT:>.
 
 Shows git-gerrit's manpage and quits.
 
+=item B<--noop>
+
+This option is for "no operation". With it git-gerrit do not execute any
+command that will change anything. This means, any Git command affecting your
+working tree or any Gerrit REST call affecting the change status on the
+server. Use it along with --debug to see what git-gerrit would do.
+
 =back
 
 Options names may be abbreviated to uniqueness, case does not matter,

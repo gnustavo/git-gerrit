@@ -36,12 +36,12 @@ our @EXPORT_OK = qw/run/;
 
 our $Command;
 
-# The %Options hash is used to hold the command line options passed to
-# all git-gerrit subcommands. The --debug option is common to all of
-# them. Each subcommand supports a specific set of options which are
+# The %Options hash is used to hold the command line options passed to all
+# git-gerrit subcommands. The --debug, --noop, and --help options are common to
+# all of them. Each subcommand supports a specific set of options which are
 # grokked by the get_options routine below.
 
-my %Options = ( debug => 0, help => 0 );
+my %Options = ( debug => 0, noop => 0, help => 0 );
 
 sub debug {
     my ($msg) = @_;
@@ -74,7 +74,7 @@ sub get_options {
         }
     }
 
-    GetOptions(\%Options, 'debug', 'help', @opt_specs) or pod2usage(2);
+    GetOptions(\%Options, qw/debug noop help/, @opt_specs) or pod2usage(2);
     pod2usage({-exitval => 1, -verbose => 2}) if $Options{help};
 }
 
@@ -84,6 +84,7 @@ sub get_options {
 sub cmd {
     my ($cmd) = @_;
     debug $cmd;
+    return 1 if $Options{noop};
     return system($cmd) == 0;
 }
 
@@ -384,7 +385,11 @@ sub gerrit {
         }
     }
 
-    return $gerrit->$method(@_);
+    if ($Options{noop} && $method ne 'GET') {
+        return 1;
+    } else {
+        return $gerrit->$method(@_);
+    }
 }
 
 # The gerrit_or_die routine relays its arguments to the gerrit routine
