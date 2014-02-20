@@ -601,6 +601,14 @@ sub checkout_upstream_and_delete_branch {
     cmd "git checkout $upstream" and cmd "git branch -D $branch";
 }
 
+# This routine returns the result of git-status with suitable options. It's
+# useful to check if the working tree is dirty before performing any other git
+# command.
+
+sub git_status {
+    return qx/git status --porcelain --untracked-files=no/;
+}
+
 ############################################################
 # MAIN
 
@@ -631,10 +639,9 @@ $Commands{new} = sub {
         $branch = $upstream;
     }
 
-    my $status = qx/git status --porcelain --untracked-files=no/;
-
-    info "Warning: git-status tells me that your working area is dirty:\n$status\n"
-        if length $status;
+    if (my $status = git_status) {
+        info "Warning: git-status tells me that your working tree is dirty:\n$status\n";
+    }
 
     if ($Options{update}) {
         update_branch($branch)
@@ -669,7 +676,7 @@ $Commands{push} = sub {
     my ($upstream, $id) = change_branch_info($branch)
         or error "$Command: You aren't in a change branch. I cannot push it.";
 
-    my $is_clean = qx/git status --porcelain --untracked-files=no/ eq '';
+    my $is_clean = git_status eq '';
 
     $is_clean or $Options{force}--
             or error <<EOF;
