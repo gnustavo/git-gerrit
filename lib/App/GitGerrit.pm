@@ -411,27 +411,24 @@ sub normalize_date {
     return $date;
 }
 
-# The query_changes routine receives a list of strings to query the
-# Gerrit server. It returns an array-ref containing a list of
-# array-refs, each containing a list of change descriptions.
+# The query_changes routine receives a list of strings to query the Gerrit
+# server and a list of options to pass to Gerrit's /changes REST end-point. It
+# returns an array-ref containing a list of array-refs, each containing a list
+# of change descriptions.
 
 sub query_changes {
-    my @queries = @_;
+    my ($queries, $opts) = @_;
 
-    return [] unless @queries;
+    return [] unless @$queries;
 
     # If we're inside a git repository, restrict the query to the
     # current project's reviews.
     if (my $project = config('project')) {
         $project = uri_escape_utf8($project);
-        @queries = map "q=project:$project+$_", @queries;
+        @$queries = map "q=project:$project+$_", @$queries;
     }
 
-    push @queries, "n=$Options{limit}" if $Options{limit};
-
-    push @queries, "o=LABELS";
-
-    my $changes = gerrit_or_die(GET => "/changes/?" . join('&', @queries));
+    my $changes = gerrit_or_die(GET => "/changes/?" . join('&', @$queries, @$opts));
     $changes = [$changes] if ref $changes->[0] eq 'HASH';
 
     return $changes;
@@ -769,7 +766,10 @@ $Commands{query} = sub {
         }
     }
 
-    my $changes = query_changes(@queries);
+    my @opts = ('o=LABELS');
+    push @opts, "n=$Options{limit}" if $Options{limit};
+
+    my $changes = query_changes(\@queries, \@opts);
 
     for (my $i=0; $i < @$changes; ++$i) {
         print "[$names[$i]=$queries[$i]]\n";
