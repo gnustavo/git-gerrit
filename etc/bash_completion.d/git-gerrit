@@ -15,7 +15,7 @@ _git_gerrit ()
 
 	case "$subcommand" in
             new)
-                __gitcomp "$gopts --update"
+                __gitcomp "$gopts --update --onto"
                 ;;
             push)
                 __gitcomp "$gopts --keep --force --rebase --norebase --draft --submit --base --topic --reviewer --cc"

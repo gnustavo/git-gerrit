@@ -605,7 +605,10 @@ sub checkout_upstream_and_delete_branch {
 my %Commands;
 
 $Commands{new} = sub {
-    get_options('update');
+    get_options(
+        'update',
+        'onto=s',
+    );
 
     my $topic = shift @ARGV
         or syntax_error "$Command: Missing TOPIC.";
@@ -633,7 +636,9 @@ $Commands{new} = sub {
             or error "$Command: Non-fast-forward pull. Please, merge or rebase your branch first.";
     }
 
-    cmd "git checkout -b change/$branch/$topic $branch";
+    my $onto = $Options{onto} || $branch;
+
+    cmd "git checkout -b change/$branch/$topic $onto";
 
     install_commit_msg_hook;
 

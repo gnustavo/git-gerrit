@@ -19,7 +19,7 @@ __END__
 
 =head1 SYNOPSIS
 
-    git gerrit new         [--update] TOPIC [BRANCH]
+    git gerrit new         [--update] [--onto COMMIT] TOPIC [BRANCH]
     git gerrit push        [--keep] [--force] [--[no]rebase] [--draft] [--submit] \
                            [--base BASE] [--topic TOPIC] [--reviewer USER] [--cc USER]
 
@@ -289,21 +289,21 @@ Shows git-gerrit's manpage and quits.
 Options names may be abbreviated to uniqueness, case does not matter,
 and a single dash is sufficient, even for long option names.
 
-=head2 git gerrit new [--update] TOPIC [BRANCH]
+=head2 git gerrit new [--update] [--onto COMMIT] TOPIC [BRANCH]
 
 The C<new> sub-command creates a new change-branch off of BRANCH
 called C<change/BRANCH/TOPIC> and checks it out for you to start
 making changes to your working area.
-
-If no BRANCH is specified, the new change is based on the current
-branch, unless it's a change-branch itself, in which case the new
-change is based on the current change-branch's upstream branch.
 
 The TOPIC name must contain at least one non-digit character so that
 it's clear that this is a new change-branch, not yet pushed to
 Gerrit. Also, the TOPIC name cannot contain slashes so that it's not
 confused with the branch name. It's usually best to use only letters
 and hyphens.
+
+If no BRANCH is specified, the new change is based on the current
+branch, unless it's a change-branch itself, in which case the new
+change is based on the current change-branch's upstream branch.
 
 =over
 
@@ -313,6 +313,12 @@ This option makes git-gerrit update BRANCH before creating the
 change-branch by fetching from Gerrit and fast-forward-merging it with
 its remote branch. This way you guarantee to start a change on top of
 the newest state of your project, which is usually the right thing to do.
+
+=item B<--onto COMMIT>
+
+This option specify a commit off of which the new branch is created. This may
+be useful if you want to start new work off of a change branch not submitted
+yet.
 
 =back
 
