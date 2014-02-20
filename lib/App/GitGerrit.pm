@@ -776,7 +776,7 @@ $Commands{query} = sub {
         next unless @{$changes->[$i]};
 
         require Text::Table;
-        my $table = Text::Table->new("ID\n&num", qw/STATUS CR UPDATED PROJECT BRANCH OWNER SUBJECT/);
+        my $table = Text::Table->new("ID\n&num", qw/BRANCH STATUS SUBJECT OWNER CR/);
 
         foreach my $change (sort {$b->{updated} cmp $a->{updated}} @{$changes->[$i]}) {
             if ($Options{verbose}) {
@@ -786,13 +786,11 @@ $Commands{query} = sub {
             }
             $table->add(
                 $change->{_number},
-                $change->{status},
-                code_review($change->{labels}{'Code-Review'}),
-                normalize_date($change->{updated}),
-                $change->{project},
                 $change->{branch},
-                $change->{owner}{name},
+                $change->{status},
                 $change->{subject},
+                $change->{owner}{name},
+                code_review($change->{labels}{'Code-Review'}),
             );
         }
         print $table->table(), "\n";
