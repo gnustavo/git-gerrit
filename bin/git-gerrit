@@ -729,7 +729,7 @@ its upstream checked out.
 
 By default git-gerrit will wait for the merge of the changes into
 their branches to complete in Gerrit. This option tells it not to wait
-and finish as soon as it receives Gerrit's submit acknowledgement.
+and finish as soon as it receives Gerrit's submit acknowledgment.
 
 =item B<--keep>
 
@@ -818,7 +818,7 @@ The B<web> sub-command opens up in your browser Gerrit's web page for
 each CHANGE. It does it by invoking C<git web--browse> for the list of
 URLs associated with each CHANGE. If no CHANGE is specified and you
 are in a change-branch, the page associated with the current CHANGE is
-openned.
+opened.
 
 Every option (but --debug) is passed as-is to the C<git web--browse>
 command. If you pass any option you must mark the end of them with a
@@ -876,7 +876,7 @@ dependencies and of installing C<git-gerrit> for you like this:
 
 If you want to use the Perl that comes packaged in your RedHat-derived
 distribution, you can install some git-gerrit dependencies from
-packaged perl modules. These are the ones packaged with CentOS 6.4:
+packaged Perl modules. These are the ones packaged with CentOS 6.4:
 
     sudo yum install -y \
         perl-URI perl-HTML-Tree perl-JSON perl-Scope-Guard \

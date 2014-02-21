@@ -37,8 +37,8 @@ our @EXPORT_OK = qw/run/;
 our $Command;
 
 # The %Options hash is used to hold the command line options passed to all
-# git-gerrit subcommands. The --debug, --noop, and --help options are common to
-# all of them. Each subcommand supports a specific set of options which are
+# git-gerrit sub-commands. The --debug, --noop, and --help options are common to
+# all of them. Each sub-command supports a specific set of options which are
 # grokked by the get_options routine below.
 
 my %Options = ( debug => 0, noop => 0, help => 0 );
@@ -78,8 +78,8 @@ sub get_options {
     pod2usage({-exitval => 1, -verbose => 2}) if $Options{help};
 }
 
-# The cmd routine is used to invoke shell commands, usually git. It
-# prints out the command before invoking it in debug operation.
+# The cmd routine is used to invoke shell commands, usually git. It prints out
+# the command before invoking it in debug operation.
 
 sub cmd {
     my ($cmd) = @_;
@@ -172,7 +172,7 @@ sub configs {
 }
 
 # The install_commit_msg_hook routine is invoked by a few of
-# git-gerrit subcommands. It checks if the current repository already
+# git-gerrit sub-commands. It checks if the current repository already
 # has a commit-msg hook installed. If not, it tries to download and
 # install Gerrit's default commit-msg hook, which inserts Change-Ids
 # in commits messages.
@@ -609,7 +609,7 @@ sub git_status {
 ############################################################
 # MAIN
 
-# Each git-gerrit subcommand is implemented by an anonymous routine
+# Each git-gerrit sub-command is implemented by an anonymous routine
 # associated with one or more names in the %Commands hash.
 
 my %Commands;
