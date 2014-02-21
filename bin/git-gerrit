@@ -24,7 +24,7 @@ __END__
                            [--base BASE] [--topic TOPIC] [--reviewer USER] [--cc USER]
 
     git gerrit query       [--limit LIMIT] [--verbose] [[NAME=]QUERY]*
-    git gerrit my          [--limit LIMIT] [--verbose] [changes|drafts|watched|starred]
+    git gerrit my          [--limit LIMIT] [--verbose] [changes|closed|drafts|watched|starred]
     git gerrit show        CHANGE*
 
     git gerrit fetch       CHANGE*
@@ -477,7 +477,7 @@ for each change, making the result appear more slowly.
 
 =back
 
-=head2 git gerrit my [--limit LIMIT] [--verbose] [changes|drafts|watched|starred]
+=head2 git gerrit my [--limit LIMIT] [--verbose] [changes|closed|drafts|watched|starred]
 
 The B<my> sub-command provides a set of pre-defined queries for the
 B<query> sub-command. It's based on Gerrit's standard queries shown in
