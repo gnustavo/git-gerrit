@@ -615,10 +615,7 @@ sub git_status {
 my %Commands;
 
 $Commands{new} = sub {
-    get_options(
-        'update',
-        'onto=s',
-    );
+    get_options qw( update onto=s );
 
     my $topic = shift @ARGV
         or syntax_error "$Command: Missing TOPIC.";
@@ -656,17 +653,7 @@ $Commands{new} = sub {
 
 $Commands{push} = sub {
     $Options{rebase} = '';      # false by default
-    get_options(
-        'keep',
-        'force+',
-        'rebase!',
-        'draft',
-        'topic=s',
-        'submit',
-        'base=s',
-        'reviewer=s@',
-        'cc=s@'
-    );
+    get_options qw( keep force+ rebase! draft topic=s submit base=s reviewer=s@ cc=s );
 
     my $branch = current_branch;
 
@@ -750,10 +737,7 @@ EOF
 };
 
 $Commands{query} = sub {
-    get_options(
-        'verbose',
-        'limit=i',
-    );
+    get_options qw( verbose limit=i );
 
     my (@names, @queries);
     foreach my $arg (@ARGV) {
@@ -833,7 +817,7 @@ $Commands{my} = sub {
 };
 
 $Commands{show} = sub {
-    get_options();
+    get_options qw();
 
     grok_unspecified_change;
 
@@ -885,7 +869,7 @@ EOF
 };
 
 $Commands{fetch} = sub {
-    get_options();
+    get_options qw();
 
     grok_unspecified_change;
 
@@ -927,13 +911,10 @@ $Commands{checkout} = $Commands{co} = sub {
     return;
 };
 
-$Commands{upstream} = $Commands{up} = sub {
+$Commands{upstream} = $Commands{ups} = sub {
     $Command = 'upstream';
 
-    get_options(
-        'keep',
-        'delete',
-    );
+    get_options qw( keep delete );
 
     my $branch = current_branch;
 
@@ -955,10 +936,7 @@ $Commands{upstream} = $Commands{up} = sub {
 $Commands{'cherry-pick'} = $Commands{cp} = sub {
     $Command = 'cherry-pick';
 
-    get_options(
-        'edit',
-        'no-commit',
-    );
+    get_options qw( edit no-commit );
 
     my @args;
     push @args, '--edit'      if $Options{edit};
@@ -977,7 +955,7 @@ $Commands{'cherry-pick'} = $Commands{cp} = sub {
 };
 
 $Commands{rebase} = sub {
-    get_options();
+    get_options qw();
 
     my ($upstream, $id) = change_branch_info(current_branch)
         or error "$Command: You must be in a change branch to invoke rebase.";
@@ -987,11 +965,7 @@ $Commands{rebase} = sub {
 };
 
 $Commands{reviewer} = sub {
-    get_options(
-        'add=s@',
-        'confirm',
-        'delete=s@',
-    );
+    get_options qw( add=s@ confirm delete=s@ );
 
     grok_unspecified_change;
 
@@ -1029,10 +1003,7 @@ $Commands{reviewer} = sub {
 };
 
 $Commands{review} = sub {
-    get_options(
-        'message=s',
-        'keep',
-    );
+    get_options qw( message=s keep );
 
     my %review;
 
@@ -1066,10 +1037,7 @@ $Commands{review} = sub {
 };
 
 $Commands{abandon} = sub {
-    get_options(
-        'message=s',
-        'keep',
-    );
+    get_options qw( message=s keep );
 
     my @args;
 
@@ -1090,7 +1058,7 @@ $Commands{abandon} = sub {
 };
 
 $Commands{restore} = sub {
-    get_options('message=s');
+    get_options qw( message=s );
 
     my @args;
 
@@ -1108,7 +1076,7 @@ $Commands{restore} = sub {
 };
 
 $Commands{revert} = sub {
-    get_options('message=s');
+    get_options qw( message=s );
 
     my @args;
 
@@ -1126,10 +1094,7 @@ $Commands{revert} = sub {
 };
 
 $Commands{submit} = sub {
-    get_options(
-        'no-wait-for-merge',
-        'keep',
-    );
+    get_options qw( no-wait-for-merge keep );
 
     my @args;
     push @args, { wait_for_merge => 'true' } unless $Options{'no-wait-for-merge'};
@@ -1150,7 +1115,7 @@ $Commands{web} = sub {
     # The 'gerrit web' sub-command passes all of its options,
     # but --debug, to 'git web--browse'.
     Getopt::Long::Configure('pass_through');
-    get_options();
+    get_options qw();
 
     # If the user is passing any option we require that it mark where
     # they end with a '--' so that we know where the CHANGEs arguments
