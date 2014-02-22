@@ -171,6 +171,18 @@ sub configs {
     return exists $config->{'git-gerrit'}{$var} ? @{$config->{'git-gerrit'}{$var}}  : ();
 }
 
+# The cat_git_dir routine concatenates the GIT_DIR with the list of path names
+# passed to it, returning the resulting path in a portable way, using
+# File::Spec::catfile to do it.
+
+sub cat_git_dir {
+    my @names = @_;
+    state $git_dir = qx/git rev-parse --git-dir/;
+    chomp $git_dir;
+    require File::Spec;
+    return File::Spec->catfile($git_dir, @names);
+}
+
 # The install_commit_msg_hook routine is invoked by a few of
 # git-gerrit sub-commands. It checks if the current repository already
 # has a commit-msg hook installed. If not, it tries to download and
@@ -178,16 +190,12 @@ sub configs {
 # in commits messages.
 
 sub install_commit_msg_hook {
-    require File::Spec;
-
-    chomp(my $git_dir = qx/git rev-parse --git-dir/);
-
     # Do nothing if it already exists
-    my $commit_msg = File::Spec->catfile($git_dir, 'hooks', 'commit-msg');
+    my $commit_msg = cat_git_dir('hooks', 'commit-msg');
     return if -e $commit_msg;
 
     # Otherwise, check if we need to mkdir the hooks directory
-    my $hooks_dir = File::Spec->catdir($git_dir, 'hooks');
+    my $hooks_dir = cat_git_dir('hooks');
     mkdir $hooks_dir unless -e $hooks_dir;
 
     # Try to download and install the hook.
