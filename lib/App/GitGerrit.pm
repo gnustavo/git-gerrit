@@ -1372,6 +1372,7 @@ $Commands{web} = sub {
 };
 
 $Commands{config} = sub {
+    get_options;
     my $config = grok_config;
     my $git_gerrit = $config->{'git-gerrit'}
         or return;
@@ -1388,6 +1389,7 @@ $Commands{config} = sub {
 };
 
 $Commands{version} = sub {
+    get_options;
     print "Perl version $^V\n";
     print "git-gerrit version $App::GitGerrit::VERSION\n";
     cmd "git version";
