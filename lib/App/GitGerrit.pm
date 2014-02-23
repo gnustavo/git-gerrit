@@ -1204,13 +1204,16 @@ $Commands{prune} = sub {
 $Commands{checkout} = $Commands{co} = sub {
     $Command = 'checkout';
 
-    my $last_change_branch = do {
-        local $Command = 'fetch';
-        my @change_branches = $Commands{fetch}->();
-        $change_branches[-1];
+    get_options qw( update );
+
+    if ($Options{update}) {
+        local $Command = 'update';
+        $Commands{update}->();
     };
 
-    cmd "git checkout $last_change_branch";
+    my $ref = select_change_refs(1);
+
+    cmd "git checkout $ref" if $ref;
 
     return;
 };

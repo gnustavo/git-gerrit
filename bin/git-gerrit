@@ -26,13 +26,13 @@ __END__
     git gerrit list
     git gerrit update      [--patchsets] [--[no]prune] [--offline]
     git gerrit prune       [--offline]
+    git gerrit checkout    [--update]
 
     git gerrit query       [--limit LIMIT] [--verbose] [[NAME=]QUERY]*
     git gerrit my          [--limit LIMIT] [--verbose] [changes|closed|drafts|watched|starred]
     git gerrit show        [CHANGE ...]
 
     git gerrit fetch       [CHANGE ...]
-    git gerrit checkout    [CHANGE ...]
     git gerrit upstream    [--prune]
     git gerrit cherry-pick [--edit] [--no-commit] [CHANGE ...]
 
@@ -239,13 +239,17 @@ interface.
 
 =head2 Amending a change
 
-    git checkout change/master/1234
+    git gerrit checkout
     # edit
     git commit --amend
     git gerrit push
 
-To amend a change you first checkout its change-branch. Then you can amend it
-and, finally, push it as another patchset to Gerrit.
+To amend a change you first checkout its change-branch. Of course, you may do
+it with 'git checkout' specifying a change-branch. But the 'git gerrit
+checkout' command prompts you with a list of all change-branches for you to
+chose which one you'd like to checkout.
+
+Then you can amend it and, finally, push it as another patchset to Gerrit.
 
 What if you want to make a comment on your new patchset? No problem,
 simply change the last line above for this:
@@ -637,14 +641,21 @@ current patch-set.
 
 If no CHANGE is specified, you'll be prompted to chose some.
 
-=head2 git gerrit checkout [CHANGE ...]
+=head2 git gerrit checkout [---update]
 
-The B<checkout> sub-command fetches one or more CHANGEs from Gerrit,
-creates change-branches pointing to them, and checks out the last
-one. It's like invoking B<git gerrit fetch CHANGE> and then B<git
-checkout CHANGE-BRANCH>.
+The B<checkout> sub-command prompts you to select an existing change-branch or
+change-tag and checks it out.
 
 The shorter name C<co> can also be used instead of C<checkout>.
+
+=over
+
+=item B<--update>
+
+This option makes git-gerrit invoke the B<update> command before prompting the
+user to select a reference.
+
+=back
 
 =head2 git gerrit upstream [--prune]
 
