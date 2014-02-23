@@ -1008,6 +1008,17 @@ $Commands{fetch} = sub {
     return @change_branches;
 };
 
+$Commands{list} = sub {
+    get_options;
+    my $tags = $Options{patchsets} ? '--tags' : '';
+    my @logs = log_refs(sort
+                            map {m@^(?:[0-9a-f]{40}) refs/(?:heads|tags)/(.*)@}
+                                grep {m@ refs/(?:heads|tags)/change/@}
+                                    qx/git show-ref --heads $tags/);
+    print @logs;
+    return;
+};
+
 $Commands{update} = $Commands{up} = sub {
     $Command = 'update';
 
@@ -1135,8 +1146,11 @@ $Commands{update} = $Commands{up} = sub {
     cmd 'git pull --ff-only' if $should_pull;
 
     # List all change branches and change tags
-    cmd 'git branch --list "change/*"';
-    cmd 'git tag    --list "change/*"' if $Options{patchsets};
+    {
+        local $Command = 'list';
+        print "\n";
+        $Commands{list}->();
+    }
 
     return;
 };
@@ -1176,6 +1190,13 @@ $Commands{prune} = sub {
     cmd join(' ', qw/git branch -D/, keys %{$refs->{heads}}) if keys %{$refs->{heads}};
 
     # FIXME: We're not deleting change branches not associated with open changes yet!
+
+    # List all change branches and change tags
+    {
+        local $Command = 'list';
+        print "\n";
+        $Commands{list}->();
+    }
 
     return;
 };

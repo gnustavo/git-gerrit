@@ -23,6 +23,7 @@ __END__
     git gerrit push        [--prune] [--force] [--[no]rebase] [--draft] [--submit] \
                            [--base BASE] [--topic TOPIC] [--reviewer USER] [--cc USER]
 
+    git gerrit list
     git gerrit update      [--patchsets] [--[no]prune] [--offline]
     git gerrit prune       [--offline]
 
@@ -209,8 +210,16 @@ invited to revise. The easiest way to get them all is this:
     git gerrit update
 
 This command queries Gerrit to grok all those open changes and fetch them all
-at once, creating a change-branch for each of them and listing them. This way
-you can easily study them using 'git show', e.g.:
+at once, creating a change-branch for each of them and deleting
+change-branches of already merged changes.
+
+The 'update' command lists all change-branches after updating them. If you
+have updated recently you may just ask to list them without updating, which is
+faster because we don't have to ask Gerrit:
+
+    git gerrit list
+
+This way you can easily study them using 'git show', e.g.:
 
     git show change/master/1234
 
@@ -455,13 +464,22 @@ option more than once, to invite more than a set of users.
 
 =back
 
+=head2 git gerrit list
+
+The B<list> sub-command lists all existing change-branches and change-tags in
+your local repository in this format:
+
+    change/master/2506    ea27239 [CDS-100] Testing
+    change/master/2507  * c320795 [CDS-100] Remove .gitreview
+    change/master/topic   ea27239 [CDS-100] Testing
+
 =head2 git gerrit update [--patchsets] [--[no]prune] [--offline]
 
 The B<update> sub-command creates and/or updates the local change-branches
 associated with all open changes in Gerrit that you own or that you are a
 reviewer of. It also deletes (i.e., prunes) any existing change-branch not
-associated with an open change in Gerrit. At the end it lists all
-change-branches in your repository.
+associated with an open change in Gerrit. At the end it invokes the B<list>
+sub-command to show the updated references.
 
 The shorter name C<up> can also be used instead of C<update>.
 
