@@ -429,6 +429,8 @@ sub query_changes {
 
     return [] unless @$queries;
 
+    $opts //= [];
+
     # If we're inside a git repository, restrict the query to the
     # current project's reviews.
     if (my $project = config('project')) {
