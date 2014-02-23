@@ -24,7 +24,7 @@ __END__
                            [--base BASE] [--topic TOPIC] [--reviewer USER] [--cc USER]
 
     git gerrit update      [--patchsets] [--[no]prune] [--offline]
-    git gerrit prune       [--[no]patchsets] [--offline]
+    git gerrit prune       [--offline]
 
     git gerrit query       [--limit LIMIT] [--verbose] [[NAME=]QUERY]*
     git gerrit my          [--limit LIMIT] [--verbose] [changes|closed|drafts|watched|starred]
@@ -488,7 +488,7 @@ your mind.
 
 =back
 
-=head2 git gerrit prune [--[no]patchsets] [--offline]
+=head2 git gerrit prune [--offline]
 
 The C<prune> sub-command prunes (i.e., deletes) every change-branch that
 hasn't been changed locally, i.e., that points to any of the patchsets of the
@@ -496,10 +496,6 @@ corresponding change. It also prunes all change-tags associated with open
 changes.
 
 =over
-
-=item B<--[no]patchsets]>
-
-Use the C<--nopatchsets> option to don't prune change-tags.
 
 =item B<--offline>
 

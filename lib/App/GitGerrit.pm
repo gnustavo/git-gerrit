@@ -1142,14 +1142,10 @@ $Commands{update} = $Commands{up} = sub {
 };
 
 $Commands{prune} = sub {
-    $Options{patchsets} = 1;    # negatable option, true by default
-    get_options qw( patchsets! offline );
+    get_options qw( offline );
 
     # Map all change branches and tags to their respective SHA-1.
     my $refs = git_change_refs;
-
-    # Forget about change tags unless we got the --nopatchsets option.
-    $refs->{tags} = {} unless $Options{patchsets};
 
     # Grok every open change having me as owner or reviewer.
     my $changes = my_changes($Options{offline});
