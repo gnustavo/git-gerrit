@@ -28,23 +28,23 @@ __END__
 
     git gerrit query       [--limit LIMIT] [--verbose] [[NAME=]QUERY]*
     git gerrit my          [--limit LIMIT] [--verbose] [changes|closed|drafts|watched|starred]
-    git gerrit show        CHANGE*
+    git gerrit show        [CHANGE ...]
 
-    git gerrit fetch       CHANGE*
-    git gerrit checkout    CHANGE*
+    git gerrit fetch       [CHANGE ...]
+    git gerrit checkout    [CHANGE ...]
     git gerrit upstream    [--prune]
-    git gerrit cherry-pick [--edit] [--no-commit] CHANGE*
+    git gerrit cherry-pick [--edit] [--no-commit] [CHANGE ...]
 
     git gerrit rebase
 
-    git gerrit reviewer    [--add USERS] [--confirm] [--delete USERS] CHANGE*
-    git gerrit review      [--message TEXT] [[LABEL]=VOTE]* CHANGE*
-    git gerrit abandon     [--message TEXT] CHANGE*
-    git gerrit restore     [--message TEXT] CHANGE*
-    git gerrit revert      [--message TEXT] CHANGE*
-    git gerrit submit      [--no-wait-for-merge] CHANGE*
+    git gerrit reviewer    [--add USERS] [--confirm] [--delete USERS] [CHANGE ...]
+    git gerrit review      [--message TEXT] [[LABEL]=VOTE]* [CHANGE ...]
+    git gerrit abandon     [--message TEXT] [CHANGE ...]
+    git gerrit restore     [--message TEXT] [CHANGE ...]
+    git gerrit revert      [--message TEXT] [CHANGE ...]
+    git gerrit submit      [--no-wait-for-merge] [CHANGE ...]
 
-    git gerrit web         [OPTIONS --] CHANGE*
+    git gerrit web         [OPTIONS --] [CHANGE ...]
 
     git gerrit config
     git gerrit version
@@ -317,6 +317,10 @@ server. Use it along with --debug to see what git-gerrit would do.
 Option names may be abbreviated to uniqueness, case does not matter,
 and a single dash is sufficient, even for long option names.
 
+Several sub-commands accept one or more change IDs as arguments. If you don't
+pass any ID you'll be prompted with a menu of all change-branches (and,
+perhaps, also change-tags, depending on the command) for you to chose from.
+
 =head2 git gerrit new [--update] [--onto COMMIT] TOPIC [BRANCH]
 
 The C<new> sub-command creates a new change-branch off of BRANCH
@@ -582,7 +586,7 @@ sub-command like this:
 
 =back
 
-=head2 git gerrit show CHANGE*
+=head2 git gerrit show [CHANGE ...]
 
 The B<show> sub-command describes one or more CHANGEs in detail,
 showing much like what Gerrit shows in a change page of its web
@@ -605,11 +609,9 @@ interface. For example:
     Laurel Keys                      +2
     ------------------------------------------------------------
 
-If no CHANGE is specified, the one associated with the current
-change-branch is described. If you're not in a change-branch, you'll
-get an error.
+If no CHANGE is specified, you'll be prompted to chose some.
 
-=head2 git gerrit fetch CHANGE*
+=head2 git gerrit fetch [CHANGE ...]
 
 The B<fetch> sub-command fetches one or more CHANGEs from Gerrit and
 creates change-branches pointing to them.
@@ -619,10 +621,9 @@ sub-command fetches the current (latest) one. If there is already a
 change-branch for the change, it will be updated to the change's
 current patch-set.
 
-If you omit the CHANGE argument and you are in a change-branch, it
-will be updated with its current patch-set.
+If no CHANGE is specified, you'll be prompted to chose some.
 
-=head2 git gerrit checkout CHANGE*
+=head2 git gerrit checkout [CHANGE ...]
 
 The B<checkout> sub-command fetches one or more CHANGEs from Gerrit,
 creates change-branches pointing to them, and checks out the last
@@ -648,7 +649,7 @@ topic name.
 
 =back
 
-=head2 git gerrit cherry-pick [--edit] [--no-commit] CHANGE*
+=head2 git gerrit cherry-pick [--edit] [--no-commit] [CHANGE ...]
 
 The B<cherry-pick> sub-command invokes the B<fetch> sub-command to
 fetch a list of CHANGES from Gerrit and to create local
@@ -695,12 +696,12 @@ name.
 An error message is produced if it's invoked when HEAD isn't pointing
 to a change-branch.
 
-=head2 git gerrit reviewer [--add USERS] [--confirm] [--delete USERS] CHANGE*
+=head2 git gerrit reviewer [--add USERS] [--confirm] [--delete USERS] [CHANGE ...]
 
 The B<reviewer> sub-command allows you to manage the list of reviewers
-for one or more CHANGEs. You can omit the CHANGE argument if you're in
-a change-branch. In this case, you'll be managing the associated
-change reviewers.
+for one or more CHANGEs.
+
+If no CHANGE is specified, you'll be prompted to chose some.
 
 =over
 
@@ -738,7 +739,7 @@ remove a group of reviewers.
 After adding and removing reviewers, C<git gerrit reviewers> shows the
 remaining list of reviewers of the changes.
 
-=head2 git gerrit review [--message TEXT] [[LABEL]=VOTE]* CHANGE*
+=head2 git gerrit review [--message TEXT] [[LABEL]=VOTE]* [CHANGE ...]
 
 The B<review> sub-command allows you to review (duh!) one or more
 CHANGEs by casting votes and adding messages to them. If you want to
@@ -746,8 +747,7 @@ be precise and add a message, you should be reviewing a single change
 at a time, but sometimes it's convenient to be able to cast the same
 vote to a set of changes.
 
-You can omit the CHANGE argument if you are in a change-branch, in
-which case you'll be reviewing the associated change.
+If no CHANGE is specified, you'll be prompted to chose some.
 
 You can cast multiple votes using C<LABEL=VOTE> arguments, where LABEL
 names a Gerrit
@@ -769,13 +769,12 @@ invocation.
 
 =back
 
-=head2 git gerrit submit [--no-wait-for-merge] CHANGE*
+=head2 git gerrit submit [--no-wait-for-merge] [CHANGE ...]
 
 The B<submit> sub-command submits one or more approved CHANGEs, making
 Gerrit merge them into their remote upstream branches.
 
-You can omit the CHANGE argument if you are in a change-branch, in
-which case you'll be submitting the associated change.
+If no CHANGE is specified, you'll be prompted to chose some.
 
 =over
 
@@ -787,12 +786,11 @@ and finish as soon as it receives Gerrit's submit acknowledgment.
 
 =back
 
-=head2 git gerrit abandon [--message TEXT] CHANGE*
+=head2 git gerrit abandon [--message TEXT] [CHANGE ...]
 
 The B<abandon> sub-command abandons one or more unmerged CHANGEs.
 
-You can omit the CHANGE argument if you are in a change-branch, in
-which case you'll be abandoning the associated change.
+If no CHANGE is specified, you'll be prompted to chose some.
 
 The Git editor (see the definition of C<GIT_EDITOR> with the C<git
 help var> command) is invoked for you to compose a message to be added
@@ -807,12 +805,11 @@ invocation.
 
 =back
 
-=head2 git gerrit restore [--message TEXT] CHANGE*
+=head2 git gerrit restore [--message TEXT] [CHANGE ...]
 
 The B<restore> sub-command restores one or more abandoned CHANGEs.
 
-You can omit the CHANGE argument if you are in a change-branch, in
-which case you'll be restoring the associated change.
+If no CHANGE is specified, you'll be prompted to chose some.
 
 The Git editor (see the definition of C<GIT_EDITOR> with the C<git
 help var> command) is invoked for you to compose a message to be added
@@ -827,15 +824,14 @@ invocation.
 
 =back
 
-=head2 git gerrit revert [--message TEXT] CHANGE*
+=head2 git gerrit revert [--message TEXT] [CHANGE ...]
 
 The B<revert> sub-command reverts one or more already merged
 CHANGEs. Gerrit does so by creating, in the server, for each CHANGE, a
 new change with an inverted patch on top of the CHANGE remote upstream
 branch.
 
-You can omit the CHANGE argument if you are in a change-branch, in
-which case you'll be reverting the associated change.
+If no CHANGE is specified, you'll be prompted to chose some.
 
 The Git editor (see the definition of C<GIT_EDITOR> with the C<git
 help var> command) is invoked for you to compose a message to be added
@@ -850,13 +846,12 @@ invocation.
 
 =back
 
-=head2 git gerrit web [OPTIONS --] CHANGE*
+=head2 git gerrit web [OPTIONS --] [CHANGE ...]
 
-The B<web> sub-command opens up in your browser Gerrit's web page for
-each CHANGE. It does it by invoking C<git web--browse> for the list of
-URLs associated with each CHANGE. If no CHANGE is specified and you
-are in a change-branch, the page associated with the current CHANGE is
-opened.
+The B<web> sub-command opens up in your browser Gerrit's web page for each
+CHANGE. It does it by invoking C<git web--browse> for the list of URLs
+associated with each CHANGE. If no CHANGE is specified, you'll be prompted to
+chose some.
 
 Every option (but --debug) is passed as-is to the C<git web--browse>
 command. If you pass any option you must mark the end of them with a

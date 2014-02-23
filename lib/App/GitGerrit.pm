@@ -611,30 +611,13 @@ sub auto_reviewers {
     return keys %reviewers;
 }
 
-# This routine is used by all sub-commands that accept zero or more
-# change ids. If @ARGV is empty it pushes into it the id of the change
-# associated with the current change-branch, if any. It returns a
-# boolean telling if the push has been made.
-
-sub grok_unspecified_change {
-    if (@ARGV) {
-        return 0;
-    } else {
-        my $id = current_change_id()
-            or syntax_error "$Command: You have to be in a change-branch or specify at least one CHANGE.";
-        $id =~ /^\d+$/
-            or error "$Command: The change-branch you're in haven't been pushed yet.";
-        @ARGV = ($id);
-        return 1;
-    }
-}
-
 # This routine uses the command 'git show-ref' to grok all local change
 # branches and tags already associated with a Gerrit change, i.e., not
 # counting change branches not pushed yet.. It returns a reference to a hash
 # containing two keys. The 'heads' key points to a hash mapping every change
 # branch to the SHA-1 it's currently pointing to. The 'tags' key points to a
 # hash mapping every change tag to the SHA-1 it points to.
+
 sub git_change_refs {
     # Map all change branches and tags to their respective SHA-1.
     my %refs = (
@@ -647,6 +630,78 @@ sub git_change_refs {
         }
     }
     return \%refs;
+}
+
+# This routine receives a list of reference names and returns an array-ref of
+# strings in this format: "REF * SHA-1 SUBJECT". The asterist is only present
+# if REF is the HEAD branch.
+
+sub log_refs {
+    my (@refs) = @_;
+
+    require Text::Table;
+    my $table = Text::Table->new(qw/REF MARK LOG/);
+
+    my $current_branch = current_branch;
+    foreach my $ref (@refs) {
+        chomp(my $log = qx/git log -1 --oneline $ref/);
+        $table->add(
+            $ref,
+            $ref eq $current_branch ? '*' : ' ',
+            $log,
+        );
+    }
+    return $table->body();
+}
+
+# The select_change_refs routine presents a menu listing all existing change
+# branches and tags for the user to select interactively. In list context the
+# user can select a list of branches and tags which names are returned as a
+# list. In scalar context the user can select a single branch or tag which
+# name is returned as a scalar. Change tags are only included if the optional
+# boolean argument $patchsets is true.
+
+sub select_change_refs {
+    my ($patchsets) = @_;
+
+    eval {require Term::Prompt}
+        or error "Failed to require Term::Prompt";
+
+    my $refs = git_change_refs;
+
+    my @refs = keys %{$refs->{heads}};
+    push @refs, keys %{$refs->{tags}} if $patchsets;
+    @refs = sort @refs;
+
+    my $title = wantarray ? 'Select one or more references' : 'Select a single reference';
+
+    my @choices = Term::Prompt::prompt(
+        'm',
+        {
+            prompt                     => 'Number?',
+            title                      => $title,
+            items                      => log_refs(@refs),
+            cols                       => 1,
+            accept_multiple_selections => wantarray,
+            ignore_empties             => 1,
+        },
+    );
+
+    return wantarray ? @refs[@choices] : $refs[$choices[0]];
+}
+
+# This routine is used by all sub-commands that accept zero or more change
+# ids. It returns @ARGV, if non-empty. Otherwise, the user is prompted to
+# select a subset of the existing change braches which ids are returned. In
+# scalar context the user can select a single change branch, which id is
+# returned as a scalar.
+
+sub grok_change_args {
+    if (wantarray) {
+        return @ARGV ? @ARGV : map { (change_branch_info($_))[1] } select_change_refs;
+    } else {
+        return @ARGV ? $ARGV[0] : change_branch_info(scalar(select_change_refs))->[1];
+    }
 }
 
 # This routine returns the result of git-status with suitable options. It's
@@ -879,9 +934,7 @@ $Commands{my} = sub {
 $Commands{show} = sub {
     get_options;
 
-    grok_unspecified_change;
-
-    foreach my $id (@ARGV) {
+    foreach my $id (grok_change_args) {
         my $change = gerrit_or_die(GET => "/changes/$id/detail");
 
         print <<EOF;
@@ -929,14 +982,12 @@ EOF
 };
 
 $Commands{fetch} = sub {
-    get_options qw();
-
-    grok_unspecified_change;
+    get_options;
 
     my $branch;
     my $project = config('project');
     my @change_branches;
-    foreach my $id (@ARGV) {
+    foreach my $id (grok_change_args) {
         my $change = get_change($id);
 
         $change->{project} eq $project
@@ -1203,9 +1254,7 @@ $Commands{rebase} = sub {
 $Commands{reviewer} = sub {
     get_options qw( add=s@ confirm delete=s@ );
 
-    grok_unspecified_change;
-
-    foreach my $id (@ARGV) {
+    foreach my $id (grok_change_args) {
         # First try to make all deletions
         if (my $users = $Options{delete}) {
             foreach my $user (split(/,/, join(',', @$users))) {
@@ -1260,9 +1309,7 @@ $Commands{review} = sub {
     error "$Command: You must specify a message or a vote to review."
         unless keys %review;
 
-    my $local_change = grok_unspecified_change;
-
-    foreach my $id (@ARGV) {
+    foreach my $id (grok_change_args) {
         gerrit_or_die(POST => "/changes/$id/revisions/current/review", \%review);
     }
 
@@ -1278,9 +1325,7 @@ $Commands{abandon} = sub {
         push @args, { message => $message };
     }
 
-    my $local_change = grok_unspecified_change;
-
-    foreach my $id (@ARGV) {
+    foreach my $id (grok_change_args) {
         gerrit_or_die(POST => "/changes/$id/abandon", @args);
     }
 
@@ -1296,9 +1341,7 @@ $Commands{restore} = sub {
         push @args, { message => $message };
     }
 
-    grok_unspecified_change;
-
-    foreach my $id (@ARGV) {
+    foreach my $id (grok_change_args) {
         gerrit_or_die(POST => "/changes/$id/restore", @args);
     }
 
@@ -1314,9 +1357,7 @@ $Commands{revert} = sub {
         push @args, { message => $message };
     }
 
-    grok_unspecified_change;
-
-    foreach my $id (@ARGV) {
+    foreach my $id (grok_change_args) {
         gerrit_or_die(POST => "/changes/$id/revert", @args);
     }
 
@@ -1329,9 +1370,7 @@ $Commands{submit} = sub {
     my @args;
     push @args, { wait_for_merge => 'true' } unless $Options{'no-wait-for-merge'};
 
-    my $local_change = grok_unspecified_change;
-
-    foreach my $id (@ARGV) {
+    foreach my $id (grok_change_args) {
         gerrit_or_die(POST => "/changes/$id/submit", @args);
     }
 
@@ -1358,12 +1397,10 @@ $Commands{web} = sub {
         }
     }
 
-    grok_unspecified_change;
-
     # Grok the URLs of each change
     my @urls;
     my $baseurl = config('baseurl');
-    foreach my $id (@ARGV) {
+    foreach my $id (grok_change_args) {
         my $change = get_change($id);
         push @urls, "$baseurl/#/c/$change->{_number}";
     }
