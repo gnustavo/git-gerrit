@@ -596,15 +596,6 @@ sub grok_unspecified_change {
     }
 }
 
-# This routine is used by the sub-commands that, when applied
-# successfully to the current change-branch, want to checkout its
-# upstream and remove the change-branch.
-
-sub checkout_upstream_and_delete_branch {
-    my $branch     = current_branch;
-    my ($upstream) = change_branch_info($branch);
-    cmd "git checkout $upstream" and cmd "git branch -D $branch";
-}
 
 # This routine returns the result of git-status with suitable options. It's
 # useful to check if the working tree is dirty before performing any other git
@@ -661,7 +652,7 @@ $Commands{new} = sub {
 
 $Commands{push} = sub {
     $Options{rebase} = '';      # false by default
-    get_options qw( keep force+ rebase! draft topic=s submit base=s reviewer=s@ cc=s );
+    get_options qw( prune force+ rebase! draft topic=s submit base=s reviewer=s@ cc=s );
 
     my $branch = current_branch;
 
@@ -735,7 +726,7 @@ EOF
     cmd "git push $remote $refspec"
         or error "$Command: Error pushing change.";
 
-    if ($is_clean && ! $Options{keep}) {
+    if ($is_clean && $Options{prune}) {
         cmd "git checkout $upstream" and cmd "git branch -D $branch";
     }
 
@@ -922,16 +913,16 @@ $Commands{checkout} = $Commands{co} = sub {
 $Commands{upstream} = $Commands{ups} = sub {
     $Command = 'upstream';
 
-    get_options qw( keep delete );
+    get_options qw( prune );
 
     my $branch = current_branch;
 
     if (my ($upstream, $id) = change_branch_info($branch)) {
         if (cmd "git checkout $upstream") {
-            if ($Options{keep} || ! $Options{delete} && $id =~ /\D/) {
-                info "Keeping $branch";
-            } else {
+            if ($Options{prune} && $id =~ /\D/) {
                 cmd "git branch -D $branch";
+            } else {
+                info "Keeping $branch";
             }
         }
     } else {
@@ -1011,7 +1002,7 @@ $Commands{reviewer} = sub {
 };
 
 $Commands{review} = sub {
-    get_options qw( message=s keep );
+    get_options qw( message=s );
 
     my %review;
 
@@ -1038,14 +1029,11 @@ $Commands{review} = sub {
         gerrit_or_die(POST => "/changes/$id/revisions/current/review", \%review);
     }
 
-    checkout_upstream_and_delete_branch
-        if $local_change && ! $Options{keep};
-
     return;
 };
 
 $Commands{abandon} = sub {
-    get_options qw( message=s keep );
+    get_options qw( message=s );
 
     my @args;
 
@@ -1058,9 +1046,6 @@ $Commands{abandon} = sub {
     foreach my $id (@ARGV) {
         gerrit_or_die(POST => "/changes/$id/abandon", @args);
     }
-
-    checkout_upstream_and_delete_branch
-        if $local_change && ! $Options{keep};
 
     return;
 };
@@ -1102,7 +1087,7 @@ $Commands{revert} = sub {
 };
 
 $Commands{submit} = sub {
-    get_options qw( no-wait-for-merge keep );
+    get_options qw( no-wait-for-merge );
 
     my @args;
     push @args, { wait_for_merge => 'true' } unless $Options{'no-wait-for-merge'};
@@ -1112,9 +1097,6 @@ $Commands{submit} = sub {
     foreach my $id (@ARGV) {
         gerrit_or_die(POST => "/changes/$id/submit", @args);
     }
-
-    checkout_upstream_and_delete_branch
-        if $local_change && ! $Options{keep};
 
     return;
 };

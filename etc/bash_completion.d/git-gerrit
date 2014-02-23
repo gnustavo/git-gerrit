@@ -18,7 +18,7 @@ _git_gerrit ()
                 __gitcomp "$gopts --update --onto"
                 ;;
             push)
-                __gitcomp "$gopts --keep --force --rebase --norebase --draft --submit --base --topic --reviewer --cc"
+                __gitcomp "$gopts --prune --force --rebase --norebase --draft --submit --base --topic --reviewer --cc"
                 ;;
             query)
                 __gitcomp "$gopts --limit --verbose"
@@ -33,7 +33,7 @@ _git_gerrit ()
                 __gitcomp "$gopts"
                 ;;
             upstream|up)
-                __gitcomp "$gopts --keep"
+                __gitcomp "$gopts --prune"
                 ;;
             cherry-pick|cp)
                 __git_cherry_pick
@@ -42,13 +42,13 @@ _git_gerrit ()
                 __gitcomp "$gopts --add --confirm --delete"
                 ;;
             review|abandon)
-                __gitcomp "$gopts --message --keep"
+                __gitcomp "$gopts --message"
                 ;;
             restore|revert)
                 __gitcomp "$gopts --message"
                 ;;
             submit)
-                __gitcomp "$gopts --no-wait-for-merge --keep"
+                __gitcomp "$gopts --no-wait-for-merge"
                 ;;
             web)
                 __git_web__browse

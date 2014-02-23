@@ -20,7 +20,7 @@ __END__
 =head1 SYNOPSIS
 
     git gerrit new         [--update] [--onto COMMIT] TOPIC [BRANCH]
-    git gerrit push        [--keep] [--force] [--[no]rebase] [--draft] [--submit] \
+    git gerrit push        [--prune] [--force] [--[no]rebase] [--draft] [--submit] \
                            [--base BASE] [--topic TOPIC] [--reviewer USER] [--cc USER]
 
     git gerrit query       [--limit LIMIT] [--verbose] [[NAME=]QUERY]*
@@ -29,17 +29,17 @@ __END__
 
     git gerrit fetch       CHANGE*
     git gerrit checkout    CHANGE*
-    git gerrit upstream    [--keep] [--delete]
+    git gerrit upstream    [--prune]
     git gerrit cherry-pick [--edit] [--no-commit] CHANGE*
 
     git gerrit rebase
 
     git gerrit reviewer    [--add USERS] [--confirm] [--delete USERS] CHANGE*
-    git gerrit review      [--message TEXT] [--keep] [[LABEL]=VOTE]* CHANGE*
-    git gerrit abandon     [--message TEXT] [--keep] CHANGE*
+    git gerrit review      [--message TEXT] [[LABEL]=VOTE]* CHANGE*
+    git gerrit abandon     [--message TEXT] CHANGE*
     git gerrit restore     [--message TEXT] CHANGE*
     git gerrit revert      [--message TEXT] CHANGE*
-    git gerrit submit      [--no-wait-for-merge] [--keep] CHANGE*
+    git gerrit submit      [--no-wait-for-merge] CHANGE*
 
     git gerrit web         [OPTIONS --] CHANGE*
 
@@ -217,7 +217,7 @@ patch-set to Gerrit, checking out upstream again.
 What if you want to make a comment on your new patchset? No problem,
 simply change the last line above for this:
 
-    git gerrit push --keep && git gerrit review
+    git gerrit push && git gerrit review
 
 Without git-gerrit you would have to go first to Gerrit's web
 interface, find the change, and copy its fetch/checkout command
@@ -228,7 +228,6 @@ amending like this:
     # edit
     git commit --amend
     git push origin HEAD:refs/for/master
-    git checkout master
 
 Oh, and if you want to comment on the new patchset, you have to go to
 Gerrit's web interface again.
@@ -293,7 +292,7 @@ server. Use it along with --debug to see what git-gerrit would do.
 
 =back
 
-Options names may be abbreviated to uniqueness, case does not matter,
+Option names may be abbreviated to uniqueness, case does not matter,
 and a single dash is sufficient, even for long option names.
 
 =head2 git gerrit new [--update] [--onto COMMIT] TOPIC [BRANCH]
@@ -310,7 +309,7 @@ and hyphens.
 
 If no BRANCH is specified, the new change is based on the current
 branch, unless it's a change-branch itself, in which case the new
-change is based on the current change-branch's upstream branch.
+change is based on the change-branch's upstream branch.
 
 =over
 
@@ -343,19 +342,14 @@ When a new change-branch is pushed it creates a Gerrit change
 associated with the TOPIC in its name, as created by C<git gerrit new>
 above.
 
-After a successful push, git-gerrit checks out the upstream branch and
-deletes the original change-branch. The goal is to maintain a clean
-namespace, containing only the change-branches that are being worked
-on. When you push one to Gerrit, you don't need to keep it any longer
-locally. If you need to amend it later, you'll be able to get to it
-with the C<git gerrit checkout> sub-command.
-
 =over
 
-=item B<--keep>
+=item B<--prune>
 
-This option tells git-gerrit not to checkout the upstream and not to
-delete the change-branch, keeping your working tree intact.
+After pushing a change-branch, you don't really need to keep it any longer,
+since you'll aways be able to fetch it later from Gerrit. This option tells
+git-gerrit to checkout the upstream branch and to delete the just pushed
+change-branch.
 
 =item B<--force>
 
@@ -562,27 +556,20 @@ checkout CHANGE-BRANCH>.
 
 The shorter name C<co> can also be used instead of C<checkout>.
 
-=head2 git gerrit upstream [--keep] [--delete]
+=head2 git gerrit upstream [--prune]
 
 The B<upstream> sub-command should be invoked when you're in a
-change-branch. It checks out the upstream branch and deletes the
-change-branch if it's associated with an already pushed change, i.e.,
-if its name ends in a legacy numeric id, not in a topic name.
+change-branch. It checks out the upstream branch.
 
-The shorter name C<up> can also be used instead of C<upstream>.
+The shorter name C<ups> can also be used instead of C<upstream>.
 
 =over
 
-=item B<--keep>
+=item B<--prune>
 
-This option prevents the change-branch deletion after the upstream
-checkout.
-
-=item B<--delete>
-
-This options forces the change-branch deletion when it's a new
-change. However, the <--keep> option has precedence, meaning that if
-both options are present the change-branch isn't deleted.
+This option deletes the original change-branch if it's associated with an
+already pushed change, i.e., if its name ends in a legacy numeric id, not in a
+topic name.
 
 =back
 
@@ -676,7 +663,7 @@ remove a group of reviewers.
 After adding and removing reviewers, C<git gerrit reviewers> shows the
 remaining list of reviewers of the changes.
 
-=head2 git gerrit review [--message TEXT] [--keep] [[LABEL]=VOTE]* CHANGE*
+=head2 git gerrit review [--message TEXT] [[LABEL]=VOTE]* CHANGE*
 
 The B<review> sub-command allows you to review (duh!) one or more
 CHANGEs by casting votes and adding messages to them. If you want to
@@ -685,9 +672,7 @@ at a time, but sometimes it's convenient to be able to cast the same
 vote to a set of changes.
 
 You can omit the CHANGE argument if you are in a change-branch, in
-which case you'll be reviewing the associated change. In this case,
-after a successful review, the change-branch will be deleted and its
-upstream checked out.
+which case you'll be reviewing the associated change.
 
 You can cast multiple votes using C<LABEL=VOTE> arguments, where LABEL
 names a Gerrit
@@ -707,21 +692,15 @@ to the review.
 This option adds a message to the review avoiding the Git editor
 invocation.
 
-=item B<--keep>
-
-This option avoids the change-branch deletion after a successful review.
-
 =back
 
-=head2 git gerrit submit [--no-wait-for-merge] [--keep] CHANGE*
+=head2 git gerrit submit [--no-wait-for-merge] CHANGE*
 
 The B<submit> sub-command submits one or more approved CHANGEs, making
 Gerrit merge them into their remote upstream branches.
 
 You can omit the CHANGE argument if you are in a change-branch, in
-which case you'll be submitting the associated change. In this case,
-after a successful submission, the change-branch will be deleted and
-its upstream checked out.
+which case you'll be submitting the associated change.
 
 =over
 
@@ -731,21 +710,14 @@ By default git-gerrit will wait for the merge of the changes into
 their branches to complete in Gerrit. This option tells it not to wait
 and finish as soon as it receives Gerrit's submit acknowledgment.
 
-=item B<--keep>
-
-This option avoids the change-branch deletion after a successful
-submission.
-
 =back
 
-=head2 git gerrit abandon [--message TEXT] [--keep] CHANGE*
+=head2 git gerrit abandon [--message TEXT] CHANGE*
 
 The B<abandon> sub-command abandons one or more unmerged CHANGEs.
 
 You can omit the CHANGE argument if you are in a change-branch, in
-which case you'll be abandoning the associated change. In this case,
-after a successful abandonment, the change-branch will be deleted and
-its upstream checked out.
+which case you'll be abandoning the associated change.
 
 The Git editor (see the definition of C<GIT_EDITOR> with the C<git
 help var> command) is invoked for you to compose a message to be added
@@ -757,15 +729,6 @@ to the action.
 
 This option adds a message to the review avoiding the Git editor
 invocation.
-
-=back
-
-=over
-
-=item B<--keep>
-
-This option avoids the change-branch deletion after a successful
-abandonment.
 
 =back
 
