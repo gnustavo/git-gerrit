@@ -877,7 +877,7 @@ $Commands{my} = sub {
 };
 
 $Commands{show} = sub {
-    get_options qw();
+    get_options;
 
     grok_unspecified_change;
 
@@ -1191,7 +1191,7 @@ $Commands{'cherry-pick'} = $Commands{pick} = sub {
 };
 
 $Commands{rebase} = sub {
-    get_options qw();
+    get_options;
 
     my ($upstream, $id) = change_branch_info(current_branch)
         or error "$Command: You must be in a change branch to invoke rebase.";
@@ -1342,7 +1342,7 @@ $Commands{web} = sub {
     # The 'gerrit web' sub-command passes all of its options,
     # but --debug, to 'git web--browse'.
     Getopt::Long::Configure('pass_through');
-    get_options qw();
+    get_options;
 
     # If the user is passing any option we require that it mark where
     # they end with a '--' so that we know where the CHANGEs arguments
