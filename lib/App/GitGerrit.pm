@@ -780,6 +780,15 @@ EOF
 
     if ($is_clean && $Options{prune}) {
         cmd "git checkout $upstream" and cmd "git branch -D $branch";
+    } else {
+        chomp(my $sha1 = qx/git rev-list -1 HEAD/);
+        my $queries = query_changes(["commit:$sha1"]);
+        if (@{$queries->[0]}) {
+            my $change = $queries->[0][0];
+            cmd "git branch -m $branch change/$change->{branch}/$change->{_number}";
+        } else {
+            error "$Command: Gerrit didn't find the commit just pushed!!!";
+        }
     }
 
     install_commit_msg_hook;
