@@ -340,7 +340,7 @@ perhaps, also change-tags, depending on the command) for you to chose from.
 
 =head2 git gerrit new [--update] [--onto COMMIT] TOPIC [BRANCH]
 
-The C<new> sub-command creates a new change-branch off of BRANCH
+The B<new> sub-command creates a new change-branch off of BRANCH
 called C<change/BRANCH/TOPIC> and checks it out for you to start
 making changes to your working tree.
 
@@ -376,7 +376,7 @@ a mistake.
 
 =head2 git gerrit push OPTIONS*
 
-The C<push> sub-command should be invoked to push a change-branch to
+The B<push> sub-command should be invoked to push a change-branch to
 Gerrit's C<refs/for/> branch associated with its upstream branch. It
 should be invoked when you have the change-branch checked out in your
 working tree.
@@ -483,13 +483,13 @@ your local repository in this format:
 
 =head2 git gerrit update [--patchsets] [--[no]prune] [--offline]
 
+(Command B<update> alias: C<up>.)
+
 The B<update> sub-command creates and/or updates the local change-branches
 associated with all open changes in Gerrit that you own or that you are a
 reviewer of. It also deletes (i.e., prunes) any existing change-branch not
 associated with an open change in Gerrit. At the end it invokes the B<list>
 sub-command to show the updated references.
-
-The shorter name C<up> can also be used instead of C<update>.
 
 =over
 
@@ -516,7 +516,7 @@ your mind.
 
 =head2 git gerrit prune [--offline]
 
-The C<prune> sub-command prunes (i.e., deletes) every change-branch that
+The B<prune> sub-command prunes (i.e., deletes) every change-branch that
 hasn't been changed locally, i.e., that points to any of the patchsets of the
 corresponding change. It also prunes all change-tags associated with open
 changes.
@@ -647,10 +647,10 @@ If no CHANGE is specified, you'll be prompted to chose some.
 
 =head2 git gerrit checkout [---update]
 
+(Command B<checkout> alias: C<co>.)
+
 The B<checkout> sub-command prompts you to select an existing change-branch or
 change-tag and checks it out.
-
-The shorter name C<co> can also be used instead of C<checkout>.
 
 =over
 
@@ -663,10 +663,10 @@ user to select a reference.
 
 =head2 git gerrit upstream [--prune]
 
+(Command B<upstream> alias: C<ups>.)
+
 The B<upstream> sub-command should be invoked when you're in a
 change-branch. It checks out the upstream branch.
-
-The shorter name C<ups> can also be used instead of C<upstream>.
 
 =over
 
@@ -680,6 +680,8 @@ topic name.
 
 =head2 git gerrit cherry-pick [--edit] [--no-commit] [CHANGE ...]
 
+(Command B<cherry-pick> alias: C<pick>.)
+
 The B<cherry-pick> sub-command invokes the B<fetch> sub-command to
 fetch a list of CHANGES from Gerrit and to create local
 change-branches for them. Then it applies all those changes to the
@@ -689,8 +691,6 @@ You may want to use this command to work on top of changes not
 submitted in Gerrit yet. You can cherry-pick them on top of a scratch
 branch and then continue to work on top of it while you wait for those
 changes to be reviewed.
-
-The shorter name C<pick> can also be used instead of C<cherry-pick>.
 
 =over
 
