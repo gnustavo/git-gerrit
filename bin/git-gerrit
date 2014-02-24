@@ -1228,28 +1228,34 @@ Where C<PERL_ROOT> is the root of your Perl installation.
 
 =head1 SEE ALSO
 
-There are some alternatives to git-gerrit, other Git extensions to
-make it easier to interact with Gerrit. The three mentioned below are
-the most well known. All of them use Gerrit's mature and simple SSH
-API while git-gerrit's distinguishes from them in that it uses
-Gerrit's newer and more comprehensive REST API.
+There are some alternatives to git-gerrit, other Git extensions to make it
+easier to interact with Gerrit. The ones mentioned below are the most well
+known to the author.
 
 =over
 
 =item * L<git-review|https://github.com/openstack-infra/git-review>
 
-Being the original inspiration for git-gerrit, git-review is a mature
-tool that's used by some very well known projects, such as OpenStack,
-MediaWiki, and LibreOffice.
+Being the original inspiration for git-gerrit, git-review is a mature tool
+that's used by some very well known projects, such as OpenStack, MediaWiki,
+and LibreOffice. Written in Python, it uses Gerrit's SSH API.
 
 =item * L<git-change|https://github.com/Nextdoor/git-change>
 
-Simpler than git-review, git-change is better documented and has the
-best name of all. From it, git-gerrit took the change-branch concept.
+Simpler than git-review, git-change is well documented and has the best name
+of all. From it, git-gerrit took the change-branch concept. Written in Python,
+it uses Gerrit's SSH API.
+
+=item * L<Barnum|http://barnum.gitblit.com/>
+
+A newer tool which supports Gerrit's and L<Gitblit|http://gitblit.com/>'s
+review workflow. From it, git-gerrit took the concept of decorating patchsets
+as change-tags. Written in Java it uses Gerrit's REST API.
 
 =item * L<querrit|https://gitorious.org/querrit/querrit>
 
 A very simple tool to query Gerrit and make it easier to push changes.
+Written in Python, it uses Gerrit's SSH API.
 
 =back
 
