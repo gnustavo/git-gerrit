@@ -1262,13 +1262,18 @@ $Commands{'cherry-pick'} = $Commands{pick} = sub {
 };
 
 $Commands{rebase} = sub {
-    get_options;
+    get_options qw( tip );
 
     my ($upstream, $id) = change_branch_info(current_branch)
         or error "$Command: You must be in a change branch to invoke rebase.";
 
-    cmd "git rebase $upstream"
-        or error "$Command: please resolve this 'git rebase $upstream' and try again.";
+    if ($Options{tip}) {
+        cmd "git rebase --onto $upstream HEAD^"
+            or error "$Command: please resolve this 'git rebase --onto $upstream HEAD^' and try again.";
+    } else {
+        cmd "git rebase $upstream"
+            or error "$Command: please resolve this 'git rebase $upstream' and try again.";
+    }
 };
 
 $Commands{reviewer} = sub {

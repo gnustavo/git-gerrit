@@ -293,10 +293,14 @@ C<master>, rebase your change-branch on top of C<master> and push it to
 Gerrit. Like so:
 
     git gerrit update
-    git rebase --onto master change/master/topic^ change/master/topic
+    git gerrit rebase --tip
     git gerrit push
 
-This will discard the commit created by the cherry-pick.
+The 'update' sub-command updates every change-branch and also their upstream
+branches. The 'rebase' sub-command usually simple rebases the cange-branch
+onto its upstream. With the C<--tip> option it rebases just the commit at the
+tip of the change-branch onto its upstream, effectivelly discarding the commit
+created previously with the 'cherry-pick' command.
 
 =head1 SUB-COMMANDS
 
@@ -711,7 +715,7 @@ your index in a row."
 
 =back
 
-=head2 git gerrit rebase
+=head2 git gerrit rebase [--tip]
 
 The B<rebase> sub-command simply rebases the current change-branch
 onto its upstream. It's a shortcut for C<git rebase UPSTREAM> but
@@ -720,6 +724,16 @@ name.
 
 An error message is produced if it's invoked when HEAD isn't pointing
 to a change-branch.
+
+=over
+
+=item B<--tip>
+
+This option rebases just the commit at the tip of the change-branch onto its
+upstream. It's useful to rebase a change created on top of some cherry-picked
+commits after they have been merged on upstream.
+
+=back
 
 =head2 git gerrit reviewer [--add USERS] [--confirm] [--delete USERS] [CHANGE ...]
 
