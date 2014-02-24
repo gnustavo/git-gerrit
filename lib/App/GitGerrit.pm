@@ -31,15 +31,15 @@ use URI::Escape;
 use Exporter 'import';
 our @EXPORT_OK = qw/run/;
 
-# The $Command variable holds the name of the git-gerrit sub-command
-# that's been invoked. It's defined in the 'run' routine below.
+# The $Command variable holds the name of the git-gerrit sub-command that's
+# been invoked. It's defined in the 'run' routine below.
 
 our $Command;
 
 # The %Options hash is used to hold the command line options passed to all
-# git-gerrit sub-commands. The --debug, --noop, and --help options are common to
-# all of them. Each sub-command supports a specific set of options which are
-# grokked by the get_options routine below.
+# git-gerrit sub-commands. The --debug, --noop, and --help options are common
+# to all of them. Each sub-command supports a specific set of options which
+# are grokked by the get_options routine below.
 
 my %Options = ( debug => 0, noop => 0, help => 0 );
 
@@ -88,9 +88,8 @@ sub cmd {
     return system($cmd) == 0;
 }
 
-# The grok_config routine returns a hash-ref mapping every Git
-# configuration variable under the 'git-gerrit' section to its list of
-# values.
+# The grok_config routine returns a hash-ref mapping every Git configuration
+# variable under the 'git-gerrit' section to its list of values.
 
 sub grok_config {
     state $config;
@@ -152,8 +151,8 @@ EOF
 }
 
 # The config routine returns the last value associated with Git's
-# git-gerrit.$var configuration variable, as output by the 'git config
-# -l' command, or undef if the variable isn't defined.
+# git-gerrit.$var configuration variable, as output by the 'git config -l'
+# command, or undef if the variable isn't defined.
 
 sub config {
     my ($var) = @_;
@@ -161,9 +160,8 @@ sub config {
     return exists $config->{'git-gerrit'}{$var} ? $config->{'git-gerrit'}{$var}[-1] : undef;
 }
 
-# The configs routine returns all values associated with Git's
-# git-gerrit.$var configuration variable or the empty list if the
-# variable isn't defined.
+# The configs routine returns all values associated with Git's git-gerrit.$var
+# configuration variable or the empty list if the variable isn't defined.
 
 sub configs {
     my ($var) = @_;
@@ -183,11 +181,10 @@ sub cat_git_dir {
     return File::Spec->catfile($git_dir, @names);
 }
 
-# The install_commit_msg_hook routine is invoked by a few of
-# git-gerrit sub-commands. It checks if the current repository already
-# has a commit-msg hook installed. If not, it tries to download and
-# install Gerrit's default commit-msg hook, which inserts Change-Ids
-# in commits messages.
+# The install_commit_msg_hook routine is invoked by a few of git-gerrit
+# sub-commands. It checks if the current repository already has a commit-msg
+# hook installed. If not, it tries to download and install Gerrit's default
+# commit-msg hook, which inserts Change-Ids in commits messages.
 
 sub install_commit_msg_hook {
     # Do nothing if it already exists
@@ -210,9 +207,8 @@ sub install_commit_msg_hook {
     }
 }
 
-# The credential_* routines below use the git-credential command to
-# get and set credentials for git commands and also for Gerrit REST
-# interactions.
+# The credential_* routines below use the git-credential command to get and
+# set credentials for git commands and also for Gerrit REST interactions.
 
 sub url_userinfo {
     my ($url) = @_;
@@ -322,9 +318,9 @@ sub set_credentials {
     return system("git credential $what <$credfile") == 0;
 }
 
-# The get_message routine returns the message argument to the
-# --message option. If the option is not present it invokes the git
-# editor to let the user compose a message and returns it.
+# The get_message routine returns the message argument to the --message
+# option. If the option is not present it invokes the git editor to let the
+# user compose a message and returns it.
 
 sub get_message {
     return $Options{message} if exists $Options{message};
@@ -364,8 +360,8 @@ EOF
     return $message;
 }
 
-# The gerrit routine keeps a cached Gerrit::REST object to which it
-# relays REST calls.
+# The gerrit routine keeps a cached Gerrit::REST object to which it relays
+# REST calls.
 
 sub gerrit {
     my $method = shift;
@@ -400,10 +396,9 @@ sub gerrit {
     }
 }
 
-# The gerrit_or_die routine relays its arguments to the gerrit routine
-# but catches any exception and dies with a formatted message. It
-# should be called instead of gerrit whenever the caller doesn't want
-# to treat exceptions.
+# The gerrit_or_die  routine relays  its arguments to  the gerrit  routine but
+# catches any exception and dies with a formatted message. It should be called
+# instead of gerrit whenever the caller doesn't want to treat exceptions.
 
 sub gerrit_or_die {
     my $result = eval { gerrit(@_) };
@@ -475,10 +470,10 @@ sub my_changes {
     return $changes;
 }
 
-# The get_change routine returns the description of a change
-# identified by $id. An optional boolean second argument ($allrevs)
-# tells if the change description should contain a description of all
-# patchsets or just the current one.
+# The get_change routine returns the description of a change identified by
+# $id. An optional boolean second argument ($allrevs) tells if the change
+# description should contain a description of all patchsets or just the
+# current one.
 
 sub get_change {
     my ($id, $allrevs) = @_;
@@ -487,16 +482,16 @@ sub get_change {
     return (gerrit_or_die(GET => "/changes/?q=change:$id&o=$revs"))[0][0];
 }
 
-# The current_branch routine returns the name of the current branch or
-# 'HEAD' in a dettached head state.
+# The current_branch routine returns the name of the current branch or 'HEAD'
+# in a dettached head state.
 
 sub current_branch {
     chomp(my $branch = qx/git rev-parse --abbrev-ref HEAD/);
     return $branch;
 }
 
-# The update_branch routine receives a local $branch name and updates
-# it with the homonym branch in the Gerrit remote.
+# The update_branch routine receives a local $branch name and updates it with
+# the homonym branch in the Gerrit remote.
 
 sub update_branch {
     my ($branch) = @_;
@@ -505,9 +500,9 @@ sub update_branch {
     cmd "git fetch $remote $branch:$branch";
 }
 
-# The change_branch_info routine receives the name of a branch. If
-# it's a change-branch, it returns a two-element list containing it's
-# upstream name and its id. Otherwise, it returns the empty list.
+# The change_branch_info routine receives the name of a branch. If it's a
+# change-branch, it returns a two-element list containing it's upstream name
+# and its id. Otherwise, it returns the empty list.
 
 sub change_branch_info {
     my ($branch) = @_;
@@ -517,9 +512,8 @@ sub change_branch_info {
     return;
 }
 
-# The current_change_id routine returns the id of the change branch
-# we're currently in. If we're not in a change branch, it returns
-# undef.
+# The current_change_id routine returns the id of the change branch we're
+# currently in. If we're not in a change branch, it returns undef.
 
 sub current_change_id {
     my ($branch, $id) = change_branch_info(current_branch);
@@ -527,9 +521,9 @@ sub current_change_id {
     return $id;
 }
 
-# This routine receives the hash-ref mapped to the 'Code-Review' label
-# in a change's 'labels' key when it's fetched with the option
-# LABELS. For more information, please read:
+# This routine receives the hash-ref mapped to the 'Code-Review' label in a
+# change's 'labels' key when it's fetched with the option LABELS. For more
+# information, please read:
 # https://gerrit-review.googlesource.com/Documentation/rest-api-changes.html#label-info
 
 sub code_review {
@@ -550,9 +544,8 @@ sub code_review {
 }
 
 # This routine receives a branch name (normally the upstream of a
-# change-branch) and returns a list of users matching the
-# git-gerrit.reviewers specifications. The list returned is guaranteed
-# to have no duplicates.
+# change-branch) and returns a list of users matching the git-gerrit.reviewers
+# specifications. The list returned is guaranteed to have no duplicates.
 
 sub auto_reviewers {
     my ($upstream) = @_;
@@ -957,8 +950,8 @@ EOF
         print "\n";
         # We want to produce a table in which the first column lists the
         # reviewer names and the other columns have their votes for each
-        # label. However, the change object has this information
-        # inverted. So, we have to first collect all votes.
+        # label. However, the change object has this information inverted. So,
+        # we have to first collect all votes.
         my @labels = sort keys %{$change->{labels}};
         my %reviewers;
         while (my ($label, $info) = each %{$change->{labels}}) {
