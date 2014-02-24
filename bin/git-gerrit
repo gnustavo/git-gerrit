@@ -187,8 +187,7 @@ Suppose you want to create a new change on master:
 First you create a new change-branch for your new change. If you're
 already in master you don't need to mention it on the first line. Then
 you make your change editing your working tree and committing. When
-you're done, simply tell git-gerrit to push your change and get back
-to master.
+you're done, simply tell git-gerrit to push your change.
 
 In order to do the same thing using only standard Git commands you'd
 do something like this:
@@ -199,23 +198,25 @@ do something like this:
     # edit
     git commit
     git push origin HEAD:refs/for/master
-    git checkout master
-    git branch -D change/master/topic
+
+The first two commands guarantee that you're creating the change branch off of
+an updated master. People usually don't do it just out of laziness, but
+git-gerrit does it for you.
 
 =head2 Studying changes
 
 Usually you're want to study open changes that you own or that you've been
-invited to revise. The easiest way to get them all is this:
+invited to review. The easiest way to get them all is this:
 
     git gerrit update
 
-This command queries Gerrit to grok all those open changes and fetch them all
-at once, creating a change-branch for each of them and deleting
-change-branches of already merged changes.
+This queries Gerrit to grok all those open changes and fetch them all at once,
+creating a change-branch for each of them and deleting change-branches of
+already merged changes.
 
-The 'update' command lists all change-branches after updating them. If you
-have updated recently you may just ask to list them without updating, which is
-faster because we don't have to ask Gerrit:
+After updating the local repositoty, the 'update' command lists all
+change-branches. If you just want to list them without updating (which may
+take a few seconds) you may use the faster 'list' command:
 
     git gerrit list
 
@@ -228,11 +229,12 @@ least get there the Git command to fetch the change before you can study it.
 
 =head2 Reviewing a change
 
-    git checkout change/master/1234
-    git gerrit review =-1
+    git gerrit review =-1 1234
 
-If you're in the change-branch associated with the change you can use 'git
-show' to study it. Then, you record your review with the 'review' sub-command.
+After having studied a change with 'git show' you may record your review with
+the 'review' command identifying the change (e.g. 1234). If you omit the
+change ID you'll be prompted to chose among all the change branches in your
+local repository the one corresponding to the change you want to review.
 
 Without git-gerrit you'd have to perform the review using Gerrit's web
 interface.
@@ -251,8 +253,8 @@ chose which one you'd like to checkout.
 
 Then you can amend it and, finally, push it as another patchset to Gerrit.
 
-What if you want to make a comment on your new patchset? No problem,
-simply change the last line above for this:
+What if you want to make a comment on your new patchset? No problem, simply
+change the last line above to this:
 
     git gerrit push && git gerrit review
 
@@ -271,15 +273,14 @@ Gerrit's web interface again.
 
 =head2 Working on top of changes pending revision
 
-You normally should try to push changes independent of each other, because
-it's a pain to amend a change upon which others depend, because you have a
-cascading rebase problem. However, sometimes you want to start work on top of
-some changes already pushed to Gerrit but that haven't been submitted
-yet. Git-gerrit's C<cherry-pick> command can help you here. Suppose you pushed
-two changes (e.g. 101 and 102) that you need to have integrated in order to
-start working on another change. You may create a new change and cherry-pick
-those two changes over it, creating a commit over which you can work. Like
-this:
+You normally should try to push changes that are independent of each other,
+because amending a change upon which others depend lead to a cascading rebase
+problem. However, sometimes you want to start work on top of some changes
+already pushed to Gerrit but that haven't been submitted yet. Git-gerrit's
+C<cherry-pick> command can help you here. Suppose you pushed two changes
+(e.g. 101 and 102) that you need to have integrated in order to start working
+on another change. You may create a new change and cherry-pick those two
+changes over it, creating a commit over which you can work. Like this:
 
     git gerrit new topic master
     git gerrit cherry-pick 101 102
@@ -288,9 +289,8 @@ Now you can start working on a future change and make another commit. At the
 end, the C<change/master/topic> change-branch will have two commits. First the
 one created by the cherry-pick and then the one you created by yourself. You
 don't want to push it to Gerrit, though, while those changes are still being
-reviewed. When they're finally submitted, you can update to pull them to
-C<master>, rebase your change-branch on top of C<master> and push it to
-Gerrit. Like so:
+reviewed. When they're finally submitted, you can pull them to C<master>,
+rebase your change-branch on top of C<master> and push it to Gerrit. Like so:
 
     git gerrit update
     git gerrit rebase --tip
