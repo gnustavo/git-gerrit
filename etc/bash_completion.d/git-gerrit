@@ -20,37 +20,34 @@ _git_gerrit ()
             push)
                 __gitcomp "$gopts --prune --force --rebase --norebase --draft --submit --base --topic --reviewer --cc"
                 ;;
-            update|up)
+            list|show|fetch|config|version)
+                __gitcomp "$gopts"
+                ;;
+            update)
                 __gitcomp "$gopts --patchsets --noprune --offline"
                 ;;
             prune)
-                __gitcomp "$gopts --nopatchsets --offline"
+                __gitcomp "$gopts --offline"
+                ;;
+            checkout)
+                __gitcomp "$gopts --update"
                 ;;
             query)
                 __gitcomp "$gopts --limit --verbose"
                 ;;
             my)
-                __gitcomp "$gopts --limit --verbose changes drafts watched starred"
+                __gitcomp "$gopts --limit --verbose changes closed drafts watched starred"
                 ;;
-            show)
-                __gitcomp "$gopts"
-                ;;
-            checkout|co)
-                __gitcomp "$gopts"
-                ;;
-            upstream|ups)
+            upstream)
                 __gitcomp "$gopts --prune"
                 ;;
-            cherry-pick|cp)
+            cherry-pick)
                 __git_cherry_pick
                 ;;
             reviewer)
                 __gitcomp "$gopts --add --confirm --delete"
                 ;;
-            review|abandon)
-                __gitcomp "$gopts --message"
-                ;;
-            restore|revert)
+            review|abandon|restore|revert)
                 __gitcomp "$gopts --message"
                 ;;
             submit)
@@ -58,9 +55,6 @@ _git_gerrit ()
                 ;;
             web)
                 __git_web__browse
-                ;;
-            config|version)
-                __gitcomp "$gopts"
                 ;;
 	    *)
                 ;;
