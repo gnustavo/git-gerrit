@@ -667,7 +667,7 @@ sub select_change_refs {
     push @refs, keys %{$refs->{tags}} if $patchsets;
     @refs = sort @refs;
 
-    my $title = wantarray ? 'Select one or more references' : 'Select a single reference';
+    my $title = wantarray ? 'Select one or more references' : 'Select one reference';
 
     my @choices = Term::Prompt::prompt(
         'm',
