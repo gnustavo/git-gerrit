@@ -1122,8 +1122,9 @@ $Commands{update} = $Commands{up} = sub {
             # Collect in @prune the change branches that aren't amended.
             my @prune;
             foreach my $change (@{$change_branches->[0]}) {
-                if (my $prune = delete $refs->{heads}{"change/$change->{branch}/$change->{_number}"}) {
-                    push @prune, $prune;
+                my $ref = "change/$change->{branch}/$change->{_number}";
+                if (delete $refs->{heads}{$ref}) {
+                    push @prune, $ref;
                 }
             }
 
