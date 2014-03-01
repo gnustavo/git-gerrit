@@ -463,6 +463,8 @@ more than once, to invite more than a set of users.
 
 =head2 git gerrit list
 
+(Command B<list> alias: C<ls>.)
+
 The B<list> sub-command lists all existing change-branches and change-tags in
 your local repository in this format:
 

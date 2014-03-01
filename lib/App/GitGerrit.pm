@@ -1002,7 +1002,9 @@ $Commands{fetch} = sub {
     return @change_branches;
 };
 
-$Commands{list} = sub {
+$Commands{list} = $Commands{ls} = sub {
+    $Command = 'list';
+
     get_options;
     my $tags = $Options{patchsets} ? '--tags' : '';
     my $logs = log_refs(sort
