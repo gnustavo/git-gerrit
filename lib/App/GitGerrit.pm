@@ -644,7 +644,8 @@ sub log_refs {
             $log,
         );
     }
-    return $table->body();
+    chomp(my @body = $table->body());
+    return \@body;
 }
 
 # The select_change_refs routine presents a menu listing all existing change
@@ -1004,11 +1005,11 @@ $Commands{fetch} = sub {
 $Commands{list} = sub {
     get_options;
     my $tags = $Options{patchsets} ? '--tags' : '';
-    my @logs = log_refs(sort
+    my $logs = log_refs(sort
                             map {m@^(?:[0-9a-f]{40}) refs/(?:heads|tags)/(.*)@}
                                 grep {m@ refs/(?:heads|tags)/change/@}
                                     qx/git show-ref --heads $tags/);
-    print @logs;
+    print $_, "\n" foreach @$logs;
     return;
 };
 
