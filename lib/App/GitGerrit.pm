@@ -1044,26 +1044,26 @@ $Commands{update} = $Commands{up} = sub {
         if (my $sha = delete $refs->{heads}{$ref}) {
             # The change branch exists already.
             if ($sha eq $change->{current_revision}) {
-                debug "$Command: branch $ref is up-to-date.";
+                info "$Command: branch $ref is up-to-date.";
             } elsif (exists $change->{revisions}{$sha}) {
                 if ($ref eq $current_branch) {
                     if (git_status eq '') {
-                        debug "$Command: $ref is the current branch and must be reset to the current patchset.";
+                        info "$Command: $ref is the current branch and must be reset to the current patchset.";
                         cmd "git reset --hard $change->{current_revision}";
                     } else {
-                        debug "$Command: $ref is the current branch and should be reset to the current patchset"
+                        info "$Command: $ref is the current branch and should be reset to the current patchset"
                             . "    but your working tree is dirty, so it will be left unchanged.";
                     }
                 } else {
-                    debug "$Command: branch $ref must be updated.";
+                    info "$Command: branch $ref must be updated.";
                     cmd "git branch -f $ref $change->{current_revision}";
                 }
             } else {
-                debug "$Command: branch $ref has been amended locally so it will be left unchanged.";
+                info "$Command: branch $ref has been amended locally so it will be left unchanged.";
             }
         } else {
             # The change branch doesn't exist yet. Let's remember to fetch it.
-            debug "$Command: $ref must be fetched.";
+            info "$Command: $ref must be fetched.";
             $fetch{heads}{$ref} = $change->{revisions}{$change->{current_revision}}{fetch}{http}{ref};
         }
 
@@ -1072,10 +1072,10 @@ $Commands{update} = $Commands{up} = sub {
             while (my ($sha, $rev) = each %{$change->{revisions}}) {
                 my $patch = "$ref/$rev->{_number}";
                 if (delete $refs->{tags}{$patch}) {
-                    debug "$Command: tag $patch is already fetched.";
+                    info "$Command: tag $patch is already fetched.";
                 } else {
                     # The change tag doesn't exist yet. Let's remember to fetch it.
-                    debug "$Command: tag $patch must be fetched.";
+                    info "$Command: tag $patch must be fetched.";
                     $fetch{tags}{$patch} = $rev->{fetch}{http}{ref};
                 }
             }
@@ -1132,7 +1132,7 @@ $Commands{update} = $Commands{up} = sub {
             # Any change branch left in %{$refs->{heads}} must have been
             # amended locally.
             foreach my $branch (keys %{$refs->{heads}}) {
-                debug "$Command: branch $branch has been amended locally so it will be left unchanged.";
+                info "$Command: branch $branch has been amended locally so it will be left unchanged.";
             }
         }
     }
@@ -1171,11 +1171,11 @@ $Commands{prune} = sub {
         if (exists $refs->{heads}{$ref}) {
             # The change branch exists.
             if ($refs->{heads}{$ref} eq $change->{current_revision}) {
-                debug "$Command: $ref is up-to-date and will be deleted.";
+                info "$Command: $ref is up-to-date and will be deleted.";
             } elsif (exists $change->{revisions}{$refs->{heads}{$ref}}) {
-                debug "$Command: $ref is outdated and will be deleted.";
+                info "$Command: $ref is outdated and will be deleted.";
             } else {
-                debug "$Command: $ref has been amended locally so we won't delete it.";
+                info "$Command: $ref has been amended locally so we won't delete it.";
                 delete $refs->{heads}{$ref};
             }
         }
