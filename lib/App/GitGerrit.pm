@@ -1046,6 +1046,10 @@ $Commands{update} = $Commands{up} = sub {
             if ($sha eq $change->{current_revision}) {
                 info "$Command: branch $ref is up-to-date.";
             } elsif (exists $change->{revisions}{$sha}) {
+                unless (cmd "git rev-list --max-count=1 --quiet $change->{current_revision} 2>/dev/null") {
+                    my ($url, $ref) = @{$change->{revisions}{$change->{current_revision}}{fetch}{http}}{qw/url ref/};
+                    cmd "git fetch $url $ref";
+                }
                 if ($ref eq $current_branch) {
                     if (git_status eq '') {
                         info "$Command: $ref is the current branch and must be reset to the current patchset.";
