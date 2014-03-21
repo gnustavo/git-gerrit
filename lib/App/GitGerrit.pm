@@ -626,21 +626,20 @@ sub git_change_refs {
 }
 
 # This routine receives a list of reference names and returns an array-ref of
-# strings in this format: "REF * SHA-1 SUBJECT". The asterist is only present
-# if REF is the HEAD branch.
+# strings in this format: "[*] REF SHA-1 SUBJECT". The '*' mark is only
+# present if REF is the HEAD branch.
 
 sub log_refs {
     my (@refs) = @_;
 
     require Text::Table;
-    my $table = Text::Table->new(qw/REF MARK LOG/);
+    my $table = Text::Table->new(qw/REF LOG/);
 
     my $current_branch = current_branch;
     foreach my $ref (@refs) {
-        chomp(my $log = qx/git log -1 --oneline $ref/);
+        chomp(my $log = qx/git log -1 --pretty=format:'\%h \%Cblue(\%<(16,trunc)\%an)\%Creset %s' $ref/);
         $table->add(
-            $ref,
-            $ref eq $current_branch ? '*' : ' ',
+            $ref eq $current_branch ? "* $ref" : "  $ref",
             $log,
         );
     }
