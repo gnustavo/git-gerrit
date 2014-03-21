@@ -1120,7 +1120,7 @@ $Commands{update} = $Commands{up} = sub {
         if (! $Options{offline} && keys %{$refs->{heads}}) {
             # We have to make sure none of these change branches were amended
             # locally. So, we query Gerrit for their SHA-1's.
-            my $change_branches = query_changes([join '+', map {"commit:$_"} values %{$refs->{heads}}]);
+            my $change_branches = query_changes(['(+', join('+OR+', map {"commit:$_"} values %{$refs->{heads}}), '+)']);
 
             # Collect in @prune the change branches that aren't amended.
             my @prune;
