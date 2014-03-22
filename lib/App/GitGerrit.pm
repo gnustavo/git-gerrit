@@ -605,21 +605,27 @@ sub auto_reviewers {
 }
 
 # This routine uses the command 'git show-ref' to grok all local change
-# branches and tags already associated with a Gerrit change, i.e., not
-# counting change branches not pushed yet.. It returns a reference to a hash
-# containing two keys. The 'heads' key points to a hash mapping every change
-# branch to the SHA-1 it's currently pointing to. The 'tags' key points to a
-# hash mapping every change tag to the SHA-1 it points to.
+# branches and tags. It returns a reference to a hash containing three
+# keys. The 'heads' key points to a hash mapping every pushed change branch to
+# the SHA-1 it's currently pointing to. The 'locals' key points to a hash
+# mapping every not-yet-pushed change branch to the SHA-1 it's currently
+# pointing to. The 'tags' key points to a hash mapping every change tag to the
+# SHA-1 it points to.
 
 sub git_change_refs {
     # Map all change branches and tags to their respective SHA-1.
     my %refs = (
-        heads => {},
-        tags  => {},
+        locals => {},
+        heads  => {},
+        tags   => {},
     );
     foreach (qx/git show-ref --heads --tags/) {
-        if (my ($sha1, $ref, $name) = m:^([0-9a-f]{40}) refs/(heads|tags)/(change/.*/[0-9]+)$:) {
-            $refs{$ref}{$name} = $sha1;
+        if (my ($sha1, $ref, $name, $id) = m:^([0-9a-f]{40}) refs/(heads|tags)/(change/.+?)(/[0-9]+)?$:) {
+            if (defined $id) {
+                $refs{$ref}{"$name$id"} = $sha1;
+            } else {
+                $refs{locals}{$name} = $sha1;
+            }
         }
     }
     return \%refs;
@@ -654,11 +660,13 @@ sub log_refs {
 # branches and tags for the user to select interactively. In list context the
 # user can select a list of branches and tags which names are returned as a
 # list. In scalar context the user can select a single branch or tag which
-# name is returned as a scalar. Change tags are only included if the optional
-# boolean argument $patchsets is true.
+# name is returned as a scalar. Already pushed change branches are always
+# shown. Not yet pushed change branches are only shown if the string 'locals'
+# is passed as one argument. Change tags are only shown if the string
+# 'patchsets' is passed as one argument.
 
 sub select_change_refs {
-    my ($patchsets) = @_;
+    my %opts = map {($_ => undef)} @_;
 
     eval {require Term::Prompt}
         or error "Failed to require Term::Prompt";
@@ -666,7 +674,11 @@ sub select_change_refs {
     my $refs = git_change_refs;
 
     my @refs = keys %{$refs->{heads}};
-    push @refs, keys %{$refs->{tags}} if $patchsets;
+    push @refs, keys %{$refs->{locals}} if exists $opts{locals};
+    push @refs, keys %{$refs->{tags}}   if exists $opts{patchsets};
+
+    return unless @refs;
+
     @refs = sort @refs;
 
     my $title = wantarray ? 'Select one or more references' : 'Select one reference';
@@ -1214,7 +1226,7 @@ $Commands{checkout} = $Commands{co} = sub {
         $Commands{update}->();
     };
 
-    my $ref = select_change_refs(1);
+    my $ref = select_change_refs(qw/locals patchsets/);
 
     cmd "git checkout $ref" if $ref;
 
