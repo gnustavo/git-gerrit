@@ -636,8 +636,11 @@ sub log_refs {
     my $table = Text::Table->new(qw/REF LOG/);
 
     my $current_branch = current_branch;
+    my $format = -t STDOUT
+        ? '%C(yellow)%h %Cblue(%<(16,trunc)%an)%Creset %s'
+        : '%h (%<(16,trunc)%an) %s';
     foreach my $ref (@refs) {
-        chomp(my $log = qx/git log -1 --pretty=format:'\%h \%Cblue(\%<(16,trunc)\%an)\%Creset %s' $ref/);
+        chomp(my $log = qx/git log -1 --pretty=format:'$format' $ref/);
         $table->add(
             $ref eq $current_branch ? "* $ref" : "  $ref",
             $log,
