@@ -27,6 +27,7 @@ __END__
     git gerrit update      [--patchsets] [--[no]prune] [--offline]
     git gerrit prune       [--offline]
     git gerrit checkout    [--update]
+    git gerrit merge       [--update]
 
     git gerrit query       [--limit LIMIT] [--verbose] [[NAME=]QUERY]*
     git gerrit my          [--limit LIMIT] [--verbose] [changes|closed|drafts|watched|starred]
@@ -633,12 +634,28 @@ change, it will be updated to the change's current patch-set.
 
 If no CHANGE is specified, you'll be prompted to chose some.
 
-=head2 git gerrit checkout [---update]
+=head2 git gerrit checkout [--update]
 
 (Command B<checkout> alias: C<co>.)
 
 The B<checkout> sub-command prompts you to select an existing change-branch or
 change-tag and checks it out.
+
+=over
+
+=item B<--update>
+
+This option makes git-gerrit invoke the B<update> command before prompting the
+user to select a reference.
+
+=back
+
+=head2 git gerrit merge [--update]
+
+The B<merge> sub-command prompts you to select one or more existing
+change-branches merge them all in a new branch created on the current
+HEAD. The "merge branch" is called "merge/N+N+N+..." where the Ns are the IDs
+of the changes associated with the merged change-branches.
 
 =over
 

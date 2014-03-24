@@ -1233,6 +1233,28 @@ $Commands{checkout} = $Commands{co} = sub {
     return;
 };
 
+$Commands{merge} = sub {
+    get_options qw( update );
+
+    if ($Options{update}) {
+        local $Command = 'update';
+        $Commands{update}->();
+    };
+
+    my @refs = select_change_refs(qw/locals/);
+
+    @refs > 0
+        or info "$Command: please select at least one change to merge."
+            and return;
+
+    my $merge_branch = 'merge/' . join('+', map {m:/([^/]+)$:} @refs);
+    cmd "git checkout -b $merge_branch"
+        or error "$Command: merge branch ($merge_branch) creation failed.";
+
+    # Merge all changes
+    cmd join(' ', 'git merge --no-ff', @refs);
+};
+
 $Commands{upstream} = $Commands{ups} = sub {
     $Command = 'upstream';
 
