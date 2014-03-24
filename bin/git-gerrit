@@ -295,7 +295,7 @@ rebase your change-branch on top of C<master> and push it to Gerrit. Like so:
     git gerrit push
 
 The 'update' sub-command updates every change-branch and also their upstream
-branches. The 'rebase' sub-command usually simple rebases the cange-branch
+branches. The 'rebase' sub-command usually simply rebases the change-branch
 onto its upstream. With the C<--tip> option it rebases just the commit at the
 tip of the change-branch onto its upstream, effectivelly discarding the commit
 created previously with the 'cherry-pick' command.
