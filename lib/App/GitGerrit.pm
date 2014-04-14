@@ -500,25 +500,40 @@ sub update_branch {
     cmd "git fetch $remote $branch:$branch";
 }
 
-# The change_branch_info routine receives the name of a branch. If it's a
-# change-branch, it returns a two-element list containing it's upstream name
-# and its id. Otherwise, it returns the empty list.
+# The change_branch_info routine receives the name of a reference and
+# returns a hash-ref containing information about it. The boolean value
+# associated with key 'is_change' tells if the reference is in fact a
+# change-branch or a change-tag. All keys are present, but they may be
+# undefined:
+# * name: the branch name
+# * remote: the brach.<name>.remote configuration value
+# * upstream: the branch.<name>.merge configuration value
+# * is_change: a boolean telling if this is a change-branch or not
+# * topic: the branch's topic name
+# * id: the branch's legacy numeric change id
+# * n: the patchset number, only defined for change-tags
 
 sub change_branch_info {
     my ($branch) = @_;
-    if ($branch =~ m:^change/(?<upstream>.*)/(?<id>[^/]+):) {
-        return ($+{upstream}, $+{id});
+    my $remote           = config("branch.$branch.remote");
+    my $upstream         = config("branch.$branch.merge");
+    my ($topic, $id, $n);
+    if ($branch =~ m:([^/]+)/(\d+)/(\d+)$:) {
+        ($topic, $id, $n) = ($1, $2, $3);
+    } elsif ($branch =~ m:([^/]+)/(\d+)$:) {
+        ($topic, $id) = ($1, $2);
+    } elsif ($branch =~ m:([^/]+)$:) {
+        $topic = $1;
     }
-    return;
-}
-
-# The current_change_id routine returns the id of the change branch we're
-# currently in. If we're not in a change branch, it returns undef.
-
-sub current_change_id {
-    my ($branch, $id) = change_branch_info(current_branch);
-
-    return $id;
+    return {
+        name      => $branch,
+        remote    => $remote,
+        upstream  => $upstream,
+        is_change => defined $remote && defined $upstream,
+        topic     => $topic,
+        id        => $id,
+        n         => $n,
+    };
 }
 
 # This routine receives the hash-ref mapped to the 'Code-Review' label in a
@@ -604,29 +619,20 @@ sub auto_reviewers {
     return keys %reviewers;
 }
 
-# This routine uses the command 'git show-ref' to grok all local change
-# branches. It returns a reference to a hash containing three
-# keys. The 'heads' key points to a hash mapping every pushed change branch to
-# the SHA-1 it's currently pointing to. The 'locals' key points to a hash
-# mapping every not-yet-pushed change branch to the SHA-1 it's currently
-# pointing to.
+# This routine uses the command 'git show-ref' to grok all local
+# branches. It returns a hash-ref mapping branch names to the SHA-1 of the
+# commit they're pointing to.
 
-sub git_change_refs {
+sub git_local_branches {
     # Map all change branches to their respective SHA-1.
-    my %refs = (
-        locals => {},
-        heads  => {},
-    );
+    my %branches;
     foreach (qx/git show-ref --heads/) {
-        if (my ($sha1, $name, $id) = m:^([0-9a-f]{40}) refs/heads/(change/.+?)(/[0-9]+)?$:) {
-            if (defined $id) {
-                $refs{heads}{"$name$id"} = $sha1;
-            } else {
-                $refs{locals}{$name} = $sha1;
-            }
+        chomp;
+        if (my ($sha1, $name) = split ' ', $_, 2) {
+            $branches{$name} = $sha1;
         }
     }
-    return \%refs;
+    return \%branches;
 }
 
 # A few sub-commands use the Text::Table module to produce well formatted
@@ -653,6 +659,7 @@ sub log_refs {
         : '%h (%<(16,trunc)%an) %s';
     foreach my $ref (@refs) {
         chomp(my $log = qx/git log -1 --pretty=format:'$format' $ref/);
+        $ref =~ s:^refs/heads/::; # chop off the common prefix
         $table->add(
             $ref eq $current_branch ? "* $ref" : "  $ref",
             $log,
@@ -676,14 +683,9 @@ sub select_change_refs {
     eval {require Term::Prompt}
         or error "Failed to require Term::Prompt";
 
-    my $refs = git_change_refs;
-
-    my @refs = keys %{$refs->{heads}};
-    push @refs, keys %{$refs->{locals}} if exists $opts{locals};
+    my @refs = sort keys %{git_local_branches()};
 
     return unless @refs;
-
-    @refs = sort @refs;
 
     my $title = wantarray ? 'Select one or more references' : 'Select one reference';
 
@@ -710,9 +712,9 @@ sub select_change_refs {
 
 sub grok_change_args {
     if (wantarray) {
-        return @ARGV ? @ARGV : map { (change_branch_info($_))[1] } select_change_refs;
+        return @ARGV ? @ARGV : map { change_branch_info($_)->{id} } select_change_refs;
     } else {
-        return @ARGV ? $ARGV[0] : change_branch_info(scalar(select_change_refs))->[1];
+        return @ARGV ? $ARGV[0] : change_branch_info(scalar(select_change_refs))->{id};
     }
 }
 
@@ -733,36 +735,24 @@ sub git_status {
 my %Commands;
 
 $Commands{new} = sub {
-    get_options qw( update onto=s );
+    get_options qw( onto=s );
 
     my $topic = shift @ARGV
         or syntax_error "$Command: Missing TOPIC.";
 
-    $topic !~ m:/:
-        or error "$Command: the topic name ($topic) should not contain slashes.";
+    $topic =~ m:^[a-z][a-z0-9_-]*$:i
+        or error "$Command: the topic name ($topic) must start with a letter and contain only letters, digits, hyfens, and underscores.";
 
-    $topic =~ m:\D:
-        or error "$Command: the topic name ($topic) should contain at least one non-digit character.";
+    # If we're on a change-branch the new change-branch is based on the same upstream
+    my $upstream = shift @ARGV || change_branch_info(current_branch)->{upstream};
 
-    my $branch = shift @ARGV || current_branch;
-
-    if (my ($upstream, $id) = change_branch_info($branch)) {
-        # If we're on a change-branch the new change-branch is based on the same upstream
-        $branch = $upstream;
-    }
-
-    if (my $status = git_status) {
+    if (my $status = git_status()) {
         info "Warning: git-status tells me that your working tree is dirty:\n$status\n";
     }
 
-    if ($Options{update}) {
-        update_branch($branch)
-            or error "$Command: Non-fast-forward pull. Please, merge or rebase your branch first.";
-    }
+    my $onto = $Options{onto} || $upstream;
 
-    my $onto = $Options{onto} || $branch;
-
-    cmd "git checkout -b change/$branch/$topic $onto";
+    cmd "git checkout -b $topic $onto";
 
     install_commit_msg_hook;
 
@@ -773,12 +763,12 @@ $Commands{push} = sub {
     $Options{rebase} = '';      # false by default
     get_options qw( prune force+ rebase! draft topic=s submit base=s reviewer=s@ cc=s );
 
-    my $branch = current_branch;
+    my $branch = change_branch_info(current_branch);
 
-    my ($upstream, $id) = change_branch_info($branch)
+    $branch->{is_change}
         or error "$Command: You aren't in a change branch. I cannot push it.";
 
-    my $is_clean = git_status eq '';
+    my $is_clean = git_status() eq '';
 
     $is_clean or $Options{force}--
             or error <<EOF;
@@ -786,9 +776,9 @@ push: Can't push change because git-status is dirty.
       If this is really what you want to do, please try again with --force.
 EOF
 
-    my @commits = qx/git log --decorate=no --first-parent --oneline ${upstream}..HEAD/;
+    my @commits = qx/git log --decorate=no --first-parent --oneline $branch->{upstream}..HEAD/;
     if (@commits == 0) {
-        error "$Command: no changes between $upstream and $branch. Pushing would be pointless.";
+        error "$Command: no changes between $branch->{upstream} and $branch->{name}. Pushing would be pointless.";
     } elsif (@commits > 1) {
         error <<EOF unless $Options{force}--;
 push: you have more than one commit that you are about to push.
@@ -802,24 +792,24 @@ EOF
     # Grok the list of parent commits to see if it's a merge commit.
     my @parents = split / /, qx/git log --pretty='format:%p' -1/;
 
-    # A --noverbose option sets $Options{rebase} to '0'.
-    if ($is_clean && (@parents < 2) && ($Options{rebase} || $Options{rebase} eq '' && $id =~ /\D/)) {
-        update_branch($upstream)
+    # Rebase to upstream if possible.
+    if ($is_clean && (@parents < 2) && ($Options{rebase} || ! defined $branch->{id})) {
+        update_branch($branch->{upstream})
             or error "$Command: Non-fast-forward pull. Please, merge or rebase your branch first.";
-        cmd "git rebase $upstream"
-            or error "$Command: please resolve this 'git rebase $upstream' and try again.";
+        cmd "git rebase $branch->{upstream}"
+            or error "$Command: please resolve this 'git rebase $branch->{upstream}' and try again.";
     }
 
-    my $refspec = 'HEAD:refs/' . ($Options{draft} ? 'drafts' : 'for') . "/$upstream";
+    my $refspec = 'HEAD:refs/' . ($Options{draft} ? 'drafts' : 'for') . "/$branch->{upstream}";
 
     my @tags;
-    if (my $topic = $Options{topic}) {
+    if (my $topic = $Options{topic} || $branch->{topic}) {
         push @tags, "topic=$topic";
-    } elsif ($id =~ /\D/) {
-        push @tags, "topic=$id";
     }
 
-    my @reviewers = (! $Options{draft} && $id =~ /\D/) ? auto_reviewers($upstream) : ();
+    my @reviewers = (! $Options{draft} && ! defined $branch->{id})
+        ? auto_reviewers($branch->{upstream})
+        : ();
     if (my $reviewers = $Options{reviewer}) {
         push @reviewers, split(/,/, join(',', @$reviewers));
     }
@@ -841,18 +831,17 @@ EOF
         $refspec .= join(',', @tags);
     }
 
-    my $remote = config('remote');
-    cmd "git push $remote $refspec"
+    cmd "git push $branch->{remote} $refspec"
         or error "$Command: Error pushing change.";
 
     if ($is_clean && $Options{prune}) {
-        cmd "git checkout $upstream" and cmd "git branch -D $branch";
+        cmd "git checkout $branch->{upstream}" and cmd "git branch -D $branch->{name}";
     } else {
         chomp(my $sha1 = qx/git rev-list -1 HEAD/);
         my $queries = query_changes(["commit:$sha1"]);
         if (@{$queries->[0]}) {
             my $change = $queries->[0][0];
-            cmd "git branch -m $branch change/$change->{branch}/$change->{_number}";
+            cmd "git branch -m $branch->{name} $change->{branch}/$change->{_number}";
         } else {
             error "$Command: Gerrit didn't find the commit just pushed!!!";
         }
@@ -890,7 +879,7 @@ $Commands{query} = sub {
 
         foreach my $change (sort {$b->{updated} cmp $a->{updated}} @{$changes->[$i]}) {
             if ($Options{verbose}) {
-                if (my $topic = gerrit_or_die(GET => "/changes/$change->{id}/topic")) {
+                if (my $topic = $change->{topic}) {
                     $change->{branch} .= " ($topic)";
                 }
             }
@@ -1020,7 +1009,7 @@ $Commands{fetch} = sub {
 
         my ($url, $ref) = @{$revision->{fetch}{http}}{qw/url ref/};
 
-        $branch = "change/$change->{branch}/$change->{_number}";
+        $branch = "$change->{branch}/$change->{_number}";
 
         cmd "git fetch --force $url $ref:$branch"
             or error "$Command: Can't fetch $url";
@@ -1035,10 +1024,7 @@ $Commands{list} = $Commands{ls} = sub {
     $Command = 'list';
 
     get_options;
-    my $logs = log_refs(sort
-                            map {m@^(?:[0-9a-f]{40}) refs/heads/(.*)@}
-                                grep {m@ refs/heads/change/@}
-                                    qx/git show-ref --heads/);
+    my $logs = log_refs(sort keys %{git_local_branches()});
     print $_, "\n" foreach @$logs;
     return;
 };
@@ -1049,8 +1035,8 @@ $Commands{update} = $Commands{up} = sub {
     $Options{prune} = 1;        # true by default
     get_options qw( prune! offline );
 
-    # Map all existing change branches to their respective SHA-1.
-    my $refs = git_change_refs;
+    # Map all existing local branches to their respective SHA-1.
+    my $refs = git_local_branches();
 
     # Grok every open change having me as owner or reviewer.
     my $changes = my_changes($Options{offline});
@@ -1064,20 +1050,20 @@ $Commands{update} = $Commands{up} = sub {
         my $upstream = $change->{branch};
         $upstreams{$upstream} = undef;
 
-        my $ref = "change/$upstream/$id";
+        my $ref = "refs/heads/change/$change->{topic}/$id";
 
         # Check the change branch
-        if (my $sha = delete $refs->{heads}{$ref}) {
+        if (my $sha = delete $refs->{$ref}) {
             # The change branch exists already.
             if ($sha eq $change->{current_revision}) {
                 info "$Command: branch $ref is up-to-date.";
             } elsif (exists $change->{revisions}{$sha}) {
                 unless (cmd "git rev-list --max-count=1 --quiet $change->{current_revision} 2>/dev/null") {
-                    my ($url, $ref) = @{$change->{revisions}{$change->{current_revision}}{fetch}{http}}{qw/url ref/};
-                    cmd "git fetch $url $ref";
+                    my ($url, $reference) = @{$change->{revisions}{$change->{current_revision}}{fetch}{http}}{qw/url ref/};
+                    cmd "git fetch $url $reference";
                 }
                 if ($ref eq $current_branch) {
-                    if (git_status eq '') {
+                    if (git_status() eq '') {
                         info "$Command: $ref is the current branch and must be reset to the current patchset.";
                         cmd "git reset --hard $change->{current_revision}";
                     } else {
@@ -1127,25 +1113,26 @@ $Commands{update} = $Commands{up} = sub {
     # Prune change branches that don't have corresponding open
     # changes in Gerrit.
     if ($Options{prune}) {
-        if (! $Options{offline} && keys %{$refs->{heads}}) {
+        if (! $Options{offline} && keys %{$refs}) {
             # We have to make sure none of these change branches were amended
             # locally. So, we query Gerrit for their SHA-1's.
-            my $change_branches = query_changes(['(+', join('+OR+', map {"commit:$_"} values %{$refs->{heads}}), '+)']);
+            my $change_branches = query_changes(['(+', join('+OR+', map {"commit:$_"} values %{$refs}), '+)']);
 
             # Collect in @prune the change branches that aren't amended.
             my @prune;
             foreach my $change (@{$change_branches->[0]}) {
-                my $ref = "change/$change->{branch}/$change->{_number}";
-                if (delete $refs->{heads}{$ref}) {
+                my $topic = exists $change->{topic} ? "$change->{topic}/" : '';
+                my $ref = "refs/heads/change/$topic$change->{_number}";
+                if (delete $refs->{$ref}) {
                     push @prune, $ref;
                 }
             }
 
             cmd join(' ', qw/git branch -D/, @prune) if @prune;
 
-            # Any change branch left in %{$refs->{heads}} must have been
-            # amended locally.
-            foreach my $branch (keys %{$refs->{heads}}) {
+            # Any change branch left in %{$refs} must have been amended
+            # locally.
+            foreach my $branch (sort keys %{$refs}) {
                 info "$Command: branch $branch has been amended locally so it will be left unchanged.";
             }
         }
@@ -1169,7 +1156,7 @@ $Commands{prune} = sub {
     get_options qw( offline );
 
     # Map all change branches to their respective SHA-1.
-    my $refs = git_change_refs;
+    my $refs = git_local_branches();
 
     # Grok every open change having me as owner or reviewer.
     my $changes = my_changes($Options{offline});
@@ -1178,24 +1165,24 @@ $Commands{prune} = sub {
     foreach my $change (@{$changes->[0]}) {
         my $id = $change->{_number};
 
-        my $ref = "change/$change->{branch}/$id";
+        my $ref = "refs/heads/change/$change->{topic}/$id";
 
         # Check the change branch
-        if (exists $refs->{heads}{$ref}) {
+        if (exists $refs->{$ref}) {
             # The change branch exists.
-            if ($refs->{heads}{$ref} eq $change->{current_revision}) {
+            if ($refs->{$ref} eq $change->{current_revision}) {
                 info "$Command: $ref is up-to-date and will be deleted.";
-            } elsif (exists $change->{revisions}{$refs->{heads}{$ref}}) {
+            } elsif (exists $change->{revisions}{$refs->{$ref}}) {
                 info "$Command: $ref is outdated and will be deleted.";
             } else {
                 info "$Command: $ref has been amended locally so we won't delete it.";
-                delete $refs->{heads}{$ref};
+                delete $refs->{$ref};
             }
         }
     }
 
     # Prune change branches that are up-to-date.
-    cmd join(' ', qw/git branch -D/, keys %{$refs->{heads}}) if keys %{$refs->{heads}};
+    cmd join(' ', qw/git branch -D/, keys %{$refs}) if keys %{$refs};
 
     # FIXME: We're not deleting change branches not associated with open changes yet!
 
@@ -1253,14 +1240,13 @@ $Commands{upstream} = $Commands{ups} = sub {
 
     get_options qw( prune );
 
-    my $branch = current_branch;
-
-    if (my ($upstream, $id) = change_branch_info($branch)) {
+    my $branch = change_branch_info(current_branch);
+    if (my $upstream = $branch->{upstream}) {
         if (cmd "git checkout $upstream") {
-            if ($Options{prune} && $id =~ /\D/) {
-                cmd "git branch -D $branch";
+            if ($Options{prune} && defined $branch->{id}) {
+                cmd "git branch -D $branch->{name}";
             } else {
-                info "Keeping $branch";
+                info "Keeping $branch->{name}";
             }
         }
     } else {
@@ -1294,8 +1280,10 @@ $Commands{'cherry-pick'} = $Commands{pick} = sub {
 $Commands{rebase} = sub {
     get_options qw( tip );
 
-    my ($upstream, $id) = change_branch_info(current_branch)
+    my $branch = change_branch_info(current_branch)
         or error "$Command: You must be in a change branch to invoke rebase.";
+
+    my $upstream = $branch->{upstream};
 
     if ($Options{tip}) {
         cmd "git rebase --onto $upstream HEAD^"
