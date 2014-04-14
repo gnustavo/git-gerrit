@@ -1109,23 +1109,25 @@ $Commands{update} = $Commands{up} = sub {
     # Grok refspecs for missing change branches and tags
     foreach my $ref (qw/heads tags/) {
         while (my ($lpath, $rpath) = each %{$fetch{$ref}}) {
-            push @refspecs, "$rpath:refs/$ref/$lpath"
+            push @refspecs, "+$rpath:refs/$ref/$lpath"
         }
     }
 
     # Grok refspecs for upstreams
-    my $should_pull;
+    my $should_merge;
     foreach my $upstream (keys %upstreams) {
         if ($upstream eq $current_branch) {
             # We can't update the current branch with a git-fetch. So, we'll
-            # remember to do a git-pull later.
-            $should_pull = 1;
+            # remember to perform a merge later.
+            $should_merge = 1;
+            push @refspecs, "$upstream";
         } else {
             push @refspecs, "$upstream:$upstream";
         }
     }
 
-    cmd join(' ', "git fetch --force", config('remote'), @refspecs) if @refspecs;
+    my $remote = config('remote');
+    cmd join(' ', 'git fetch', $remote, @refspecs) if @refspecs;
 
     # Prune change branches and tags that don't have corresponding open
     # changes in Gerrit.
@@ -1158,7 +1160,7 @@ $Commands{update} = $Commands{up} = sub {
 
     # Pull the current branch (if it's an upstream branch) at the end because
     # the command can fail and the user should notice the failure.
-    cmd 'git pull --ff-only' if $should_pull;
+    cmd "git merge --ff-only $remote/$current_branch" if $should_merge;
 
     # List all change branches and change tags
     {
