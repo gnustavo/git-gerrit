@@ -19,7 +19,7 @@ BEGIN {
 use open ':std', $encoding;
 
 package App::GitGerrit;
-# ABSTRACT: A container for functions for the git-gerrit program
+# ABSTRACT: Git extension to implement a Gerrit workflow
 
 use Pod::Usage;
 use Getopt::Long qw(:config auto_version auto_help);

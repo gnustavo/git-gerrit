@@ -1,5 +1,4 @@
-README - The git-gerrit script is a Git extension to implement a
-Gerrit workflow.
+README - Git extension to implement a Gerrit workflow.
 
 =head1 DESCRIPTION
 
