@@ -1240,3 +1240,7 @@ Written in Python, it uses Gerrit's SSH API.
 If you're interested in Gerrit automation per se, you can take a look at the
 L<Gerrit::REST> Perl module, which is used by C<git-gerrit> to interact with
 Gerrit via it's REST API.
+
+=head1 REPOSITORY
+
+L<https://github.com/gnustavo/Gerrit-REST>
