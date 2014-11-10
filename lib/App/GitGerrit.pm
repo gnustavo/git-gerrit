@@ -940,10 +940,11 @@ $Commands{my} = sub {
 };
 
 $Commands{show} = sub {
-    get_options;
+    get_options qw( verbose );
 
+    my $parameters = $Options{verbose} ? '?o=MESSAGES' : '';
     foreach my $id (grok_change_args) {
-        my $change = gerrit_or_die(GET => "/changes/$id/detail");
+        my $change = gerrit_or_die(GET => "/changes/$id/detail$parameters");
 
         print <<EOF;
  Change-Num: $change->{_number}
@@ -983,7 +984,19 @@ EOF
             my @votes = map {$_ > 0 ? "+$_" : $_} map {defined $_ ? $_ : '0'} @{$reviewers{$name}}{@labels};
             $table->add($name, @votes);
         }
-        print $table->table(), '-' x 60, "\n";
+        print $table->table();
+
+        if ($Options{verbose}) {
+            print "\n";
+            foreach my $msg (@{$change->{messages}}) {
+                # Indent message by four spaces
+                $msg->{message} =~ s/^/    /mg;
+                $msg->{date} = normalize_date($msg->{date});
+                print "$msg->{date}  $msg->{author}{name}\n$msg->{message}\n\n"
+            }
+        }
+
+        print '-' x 60, "\n";
     }
 
     return;

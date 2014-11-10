@@ -31,7 +31,7 @@ __END__
 
     git gerrit query       [--limit LIMIT] [--verbose] [[NAME=]QUERY]*
     git gerrit my          [--limit LIMIT] [--verbose] [changes|closed|drafts|watched|starred]
-    git gerrit show        [CHANGE ...]
+    git gerrit show        [--verbose] [CHANGE ...]
 
     git gerrit fetch       [CHANGE ...]
     git gerrit upstream    [--prune]
@@ -599,7 +599,7 @@ sub-command like this:
 
 =back
 
-=head2 git gerrit show [CHANGE ...]
+=head2 git gerrit show [--verbose] [CHANGE ...]
 
 The B<show> sub-command describes one or more CHANGEs in detail, showing much
 like what Gerrit shows in a change page of its web interface. For example:
@@ -622,6 +622,10 @@ like what Gerrit shows in a change page of its web interface. For example:
     ------------------------------------------------------------
 
 If no CHANGE is specified, you'll be prompted to chose some.
+
+=item B<--verbose>
+
+This option makes git-gerrit to also display the change messages.
 
 =head2 git gerrit fetch [CHANGE ...]
 
