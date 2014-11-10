@@ -62,8 +62,11 @@ _git_gerrit ()
         web)
             __git_web__browse
             ;;
-        list|ls|show|fetch|rebase|config|version)
+        list|ls|fetch|rebase|config|version)
             opts="$opts"
+            ;;
+        show)
+            __gitcomp "$gopts --verbose"
             ;;
     esac
     case "$prev" in

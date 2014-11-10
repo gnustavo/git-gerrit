@@ -85,8 +85,6 @@ This would be really cool.
 
 To remove stale change-branches, a la git-repo.
 
-=item * show change comments in 'git gerrit show --verbose'
-
 =item * show current change-set id in 'git gerrit show'
 
 =item * reformat dates on 'git gerrit query'
