@@ -1,62 +1,95 @@
-# bash completion support for git-gerrit.  Your bash must source
-# /usr/share/bash-completion/completions/git before sourcing this.
+# bash completion support for git-gerrit.  Your bash -*- shell-script -*-
+# must source /usr/share/bash-completion/completions/git before sourcing
+# this.
 
 _git_gerrit ()
 {
-	__git_has_doubledash && return
+    __git_has_doubledash && return
 
-	local subcommands="new push query my show checkout co upstream up cherry-pick cp reviewer review abandon restore revert submit web config version"
-	local subcommand="$(__git_find_on_cmdline "$subcommands")"
-	if [ -z "$subcommand" ]; then
-	    __gitcomp "$subcommands"
-	fi
+    local subcommands="new push list ls update up prune checkout co merge \
+                       query my show fetch upstream ups cherry-pick pick \
+                       rebase reviewer review abandon restore revert submit \
+                       web config version"
+    local subcommand="$(__git_find_on_cmdline "$subcommands")"
 
-        gopts='--debug --help --noop'
+    local opts='--debug --help --noop'
+    if [ -z "$subcommand" ]; then
+        case "$cur" in
+            --*)
+                __gitcomp "$opts"
+                ;;
+            *)
+                __gitcomp "$subcommands"
+                ;;
+        esac
+    fi
 
-	case "$subcommand" in
-            new)
-                __gitcomp "$gopts --update --onto"
-                ;;
-            push)
-                __gitcomp "$gopts --prune --force --rebase --norebase --draft --submit --base --topic --reviewer --cc"
-                ;;
-            list|show|fetch|config|version)
-                __gitcomp "$gopts"
-                ;;
-            update)
-                __gitcomp "$gopts --patchsets --noprune --offline"
-                ;;
-            prune)
-                __gitcomp "$gopts --offline"
-                ;;
-            checkout)
-                __gitcomp "$gopts --update"
-                ;;
-            query)
-                __gitcomp "$gopts --limit --verbose"
-                ;;
-            my)
-                __gitcomp "$gopts --limit --verbose changes closed drafts watched starred"
-                ;;
-            upstream)
-                __gitcomp "$gopts --prune"
-                ;;
-            cherry-pick)
-                __git_cherry_pick
-                ;;
-            reviewer)
-                __gitcomp "$gopts --add --confirm --delete"
-                ;;
-            review|abandon|restore|revert)
-                __gitcomp "$gopts --message"
-                ;;
-            submit)
-                __gitcomp "$gopts --no-wait-for-merge"
-                ;;
-            web)
-                __git_web__browse
-                ;;
-	    *)
-                ;;
-	esac
+    case "$subcommand" in
+        new)
+            opts="$opts --update --onto="
+            ;;
+        push)
+            opts="$opts --prune --force --rebase --norebase --draft --submit \
+                  --base= --topic= --reviewer= --cc="
+            ;;
+        update|up)
+            opts="$opts --patchsets --prune --noprune --offline"
+            ;;
+        prune)
+            opts="$opts --offline"
+            ;;
+        checkout|co|merge)
+            opts="$opts --update"
+            ;;
+        query|my)
+            opts="$opts --limit= --verbose"
+            ;;
+        upstream|ups)
+            opts="$opts --prune"
+            ;;
+        cherry-pick|pick)
+            __git_cherry_pick
+            ;;
+        reviewer)
+            opts="$opts --add= --confirm --delete="
+            ;;
+        review|abandon|restore|revert)
+            opts="$opts --message="
+            ;;
+        submit)
+            opts="$opts --no-wait-for-merge"
+            ;;
+        web)
+            __git_web__browse
+            ;;
+        list|ls|show|fetch|rebase|config|version)
+            opts="$opts"
+            ;;
+    esac
+    case "$prev" in
+        --onto)
+            __gitcomp_nl "$(__git_refs)"
+            ;;
+    esac
+    case "$cur" in
+        --onto=*)
+            __gitcomp_nl "$(__git_refs)" "" "${cur#--*=}"
+            ;;
+        --*)
+            __gitcomp "$opts"
+            ;;
+        *)
+            case "$subcommand" in
+                my)
+                    __gitcomp "changes closed drafts watched starred"
+                    ;;
+                cherry-pick|cp)
+                    __git_cherry_pick
+                    ;;
+                web)
+                    __git_web__browse
+                    ;;
+            esac
+            ;;
+    esac
 }
