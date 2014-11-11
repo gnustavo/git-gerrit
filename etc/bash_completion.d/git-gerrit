@@ -20,8 +20,11 @@ _git_gerrit ()
             push)
                 __gitcomp "$gopts --prune --force --rebase --norebase --draft --submit --base --topic --reviewer --cc"
                 ;;
-            list|show|fetch|config|version)
+            list|fetch|config|version)
                 __gitcomp "$gopts"
+                ;;
+            show)
+                __gitcomp "$gopts --verbose"
                 ;;
             update)
                 __gitcomp "$gopts --patchsets --noprune --offline"
