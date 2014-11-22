@@ -815,7 +815,7 @@ EOF
         push @tags, "topic=$id";
     }
 
-    my @reviewers = $Options{draft} ? () : auto_reviewers($upstream);
+    my @reviewers = (! $Options{draft} && $id =~ /\D/) ? auto_reviewers($upstream) : ();
     if (my $reviewers = $Options{reviewer}) {
         push @reviewers, split(/,/, join(',', @$reviewers));
     }

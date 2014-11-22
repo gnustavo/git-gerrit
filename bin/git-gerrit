@@ -1128,6 +1128,10 @@ reviewers to the current change being pushed.
 
 =back
 
+The list of automatic reviewers is used only when pushing the first patchset
+of a new change. Later patchsets of the same change don't clobber the list
+of current reviewers because it may have been manually adjusted by the user.
+
 =head1 COMMIT-MSG HOOK
 
 Gerrit provides a C<commit-msg> hook for Git that should be installed in your
