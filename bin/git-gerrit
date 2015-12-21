@@ -72,8 +72,7 @@ gerrit push> sub-command, avoiding the need to type remote names and long
 refspecs.
 
 =item * A standard way to map Gerrit changes into local branches, referred to
-as "change-branches", and Gerrit patchsets into local tags, referred to as
-"change-tags", making it easier to manage several changes simultaneously and
+as "change-branches", making it easier to manage several changes simultaneously and
 to perform the fetch-amend-push review cycle.
 
 =item * Several sub-commands to query and inspect Gerrit changes and also to
@@ -157,16 +156,6 @@ numeric change ID.
 
 So, you should reserve the C<change/> top-level branch name for the
 change-branches managed by git-gerrit.
-
-=item B<change-tag>
-
-A C<change-tag> is a local "lightweight" tag with a special name that
-git-gerrit creates and maps to a specific patchset of a Gerrit change.
-
-When C<git gerrit update --patchsets> fetches an existing change it creates
-one change-tag to each of the change's patchset. These change-tags are named
-B<change/BRANCH/ID/N>, where BRANCH is the name of the branch associated with
-the change, ID is its legacy numeric change ID, and N is the patchset number.
 
 =back
 
@@ -333,8 +322,8 @@ Option names may be abbreviated to uniqueness, case does not matter, and a
 single dash is sufficient, even for long option names.
 
 Several sub-commands accept one or more change IDs as arguments. If you don't
-pass any ID you'll be prompted with a menu of all change-branches (and,
-perhaps, also change-tags, depending on the command) for you to chose from.
+pass any ID you'll be prompted with a menu of all change-branches
+for you to chose from.
 
 =head2 git gerrit new [--update] [--onto COMMIT] TOPIC [BRANCH]
 
@@ -466,14 +455,14 @@ more than once, to invite more than a set of users.
 
 (Command B<list> alias: C<ls>.)
 
-The B<list> sub-command lists all existing change-branches and change-tags in
+The B<list> sub-command lists all existing change-branches in
 your local repository in this format:
 
     change/master/2506    ea27239 [CDS-100] Testing
     change/master/2507  * c320795 [CDS-100] Remove .gitreview
     change/master/topic   ea27239 [CDS-100] Testing
 
-=head2 git gerrit update [--patchsets] [--[no]prune] [--offline]
+=head2 git gerrit update [--[no]prune] [--offline]
 
 (Command B<update> alias: C<up>.)
 
@@ -485,16 +474,9 @@ sub-command to show the updated references.
 
 =over
 
-=item B<--patchsets>
-
-This options makes the B<update> sub-command also create the local change-tags
-associated with all patchsets of the changes. It also deletes (i.e., prunes)
-any existing change-tag not associated with an open change in Gerrit. At the
-end it lists all change-tags too.
-
 =item B<--[no]prune>
 
-By default, existing change-branches and change-tags not associated with any
+By default, existing change-branches not associated with any
 open change are pruned, unless you pass the C<--noprune> option.
 
 =item B<--offline>
@@ -510,8 +492,7 @@ your mind.
 
 The B<prune> sub-command prunes (i.e., deletes) every change-branch that
 hasn't been changed locally, i.e., that points to any of the patchsets of the
-corresponding change. It also prunes all change-tags associated with open
-changes.
+corresponding change.
 
 =over
 
@@ -642,8 +623,8 @@ If no CHANGE is specified, you'll be prompted to chose some.
 
 (Command B<checkout> alias: C<co>.)
 
-The B<checkout> sub-command prompts you to select an existing change-branch or
-change-tag and checks it out.
+The B<checkout> sub-command prompts you to select an existing change-branch
+to checkout.
 
 =over
 
@@ -1235,8 +1216,7 @@ it uses Gerrit's SSH API.
 =item * L<Barnum|http://barnum.gitblit.com/>
 
 A newer tool which supports Gerrit's and L<Gitblit|http://gitblit.com/>'s
-review workflow. From it, git-gerrit took the concept of decorating patchsets
-as change-tags. Written in Java it uses Gerrit's REST API.
+review workflow. Written in Java it uses Gerrit's REST API.
 
 =item * L<querrit|https://gitorious.org/querrit/querrit>
 

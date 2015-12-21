@@ -605,24 +605,22 @@ sub auto_reviewers {
 }
 
 # This routine uses the command 'git show-ref' to grok all local change
-# branches and tags. It returns a reference to a hash containing three
+# branches. It returns a reference to a hash containing three
 # keys. The 'heads' key points to a hash mapping every pushed change branch to
 # the SHA-1 it's currently pointing to. The 'locals' key points to a hash
 # mapping every not-yet-pushed change branch to the SHA-1 it's currently
-# pointing to. The 'tags' key points to a hash mapping every change tag to the
-# SHA-1 it points to.
+# pointing to.
 
 sub git_change_refs {
-    # Map all change branches and tags to their respective SHA-1.
+    # Map all change branches to their respective SHA-1.
     my %refs = (
         locals => {},
         heads  => {},
-        tags   => {},
     );
-    foreach (qx/git show-ref --heads --tags/) {
-        if (my ($sha1, $ref, $name, $id) = m:^([0-9a-f]{40}) refs/(heads|tags)/(change/.+?)(/[0-9]+)?$:) {
+    foreach (qx/git show-ref --heads/) {
+        if (my ($sha1, $name, $id) = m:^([0-9a-f]{40}) refs/heads/(change/.+?)(/[0-9]+)?$:) {
             if (defined $id) {
-                $refs{$ref}{"$name$id"} = $sha1;
+                $refs{heads}{"$name$id"} = $sha1;
             } else {
                 $refs{locals}{$name} = $sha1;
             }
@@ -657,13 +655,12 @@ sub log_refs {
 }
 
 # The select_change_refs routine presents a menu listing all existing change
-# branches and tags for the user to select interactively. In list context the
-# user can select a list of branches and tags which names are returned as a
-# list. In scalar context the user can select a single branch or tag which
+# branches for the user to select interactively. In list context the
+# user can select a list of branches which names are returned as a
+# list. In scalar context the user can select a single branch which
 # name is returned as a scalar. Already pushed change branches are always
 # shown. Not yet pushed change branches are only shown if the string 'locals'
-# is passed as one argument. Change tags are only shown if the string
-# 'patchsets' is passed as one argument.
+# is passed as one argument.
 
 sub select_change_refs {
     my %opts = map {($_ => undef)} @_;
@@ -675,7 +672,6 @@ sub select_change_refs {
 
     my @refs = keys %{$refs->{heads}};
     push @refs, keys %{$refs->{locals}} if exists $opts{locals};
-    push @refs, keys %{$refs->{tags}}   if exists $opts{patchsets};
 
     return unless @refs;
 
@@ -1033,11 +1029,10 @@ $Commands{list} = $Commands{ls} = sub {
     $Command = 'list';
 
     get_options;
-    my $tags = $Options{patchsets} ? '--tags' : '';
     my $logs = log_refs(sort
-                            map {m@^(?:[0-9a-f]{40}) refs/(?:heads|tags)/(.*)@}
-                                grep {m@ refs/(?:heads|tags)/change/@}
-                                    qx/git show-ref --heads $tags/);
+                            map {m@^(?:[0-9a-f]{40}) refs/heads/(.*)@}
+                                grep {m@ refs/heads/change/@}
+                                    qx/git show-ref --heads/);
     print $_, "\n" foreach @$logs;
     return;
 };
@@ -1046,13 +1041,10 @@ $Commands{update} = $Commands{up} = sub {
     $Command = 'update';
 
     $Options{prune} = 1;        # true by default
-    get_options qw( patchsets prune! offline );
+    get_options qw( prune! offline );
 
-    # Map all existing change branches and tags to their respective SHA-1.
+    # Map all existing change branches to their respective SHA-1.
     my $refs = git_change_refs;
-
-    # Forget about change tags unless we got the --patchsets option.
-    $refs->{tags} = {} unless $Options{patchsets};
 
     # Grok every open change having me as owner or reviewer.
     my $changes = my_changes($Options{offline});
@@ -1098,32 +1090,16 @@ $Commands{update} = $Commands{up} = sub {
             info "$Command: $ref must be fetched.";
             $fetch{heads}{$ref} = $change->{revisions}{$change->{current_revision}}{fetch}{http}{ref};
         }
-
-        # Check the change tags
-        if ($Options{patchsets}) {
-            while (my ($sha, $rev) = each %{$change->{revisions}}) {
-                my $patch = "$ref/$rev->{_number}";
-                if (delete $refs->{tags}{$patch}) {
-                    info "$Command: tag $patch is already fetched.";
-                } else {
-                    # The change tag doesn't exist yet. Let's remember to fetch it.
-                    info "$Command: tag $patch must be fetched.";
-                    $fetch{tags}{$patch} = $rev->{fetch}{http}{ref};
-                }
-            }
-        }
     }
 
-    # We'll update all change branches, change tags, and upstream branches
+    # We'll update all change branches and upstream branches
     # with a single git-fetch.  This array will contain all refspecs to pass
     # to git fetch below.
     my @refspecs;
 
-    # Grok refspecs for missing change branches and tags
-    foreach my $ref (qw/heads tags/) {
-        while (my ($lpath, $rpath) = each %{$fetch{$ref}}) {
-            push @refspecs, "+$rpath:refs/$ref/$lpath"
-        }
+    # Grok refspecs for missing change branches
+    while (my ($lpath, $rpath) = each %{$fetch{heads}}) {
+        push @refspecs, "+$rpath:refs/heads/$lpath"
     }
 
     # Grok refspecs for upstreams
@@ -1142,11 +1118,9 @@ $Commands{update} = $Commands{up} = sub {
     my $remote = config('remote');
     cmd join(' ', 'git fetch', $remote, @refspecs) if @refspecs;
 
-    # Prune change branches and tags that don't have corresponding open
+    # Prune change branches that don't have corresponding open
     # changes in Gerrit.
     if ($Options{prune}) {
-        cmd join(' ', qw/git tag -d/, keys %{$refs->{tags}}) if keys %{$refs->{tags}};
-
         if (! $Options{offline} && keys %{$refs->{heads}}) {
             # We have to make sure none of these change branches were amended
             # locally. So, we query Gerrit for their SHA-1's.
@@ -1175,7 +1149,7 @@ $Commands{update} = $Commands{up} = sub {
     # the command can fail and the user should notice the failure.
     cmd "git merge --ff-only $remote/$current_branch" if $should_merge;
 
-    # List all change branches and change tags
+    # List all change branches
     {
         local $Command = 'list';
         print "\n";
@@ -1188,14 +1162,13 @@ $Commands{update} = $Commands{up} = sub {
 $Commands{prune} = sub {
     get_options qw( offline );
 
-    # Map all change branches and tags to their respective SHA-1.
+    # Map all change branches to their respective SHA-1.
     my $refs = git_change_refs;
 
     # Grok every open change having me as owner or reviewer.
     my $changes = my_changes($Options{offline});
 
-    # Remember all change branches and tags that are up-to-date to delete them
-    # later.
+    # Remember all change branches that are up-to-date to delete them later.
     foreach my $change (@{$changes->[0]}) {
         my $id = $change->{_number};
 
@@ -1215,13 +1188,12 @@ $Commands{prune} = sub {
         }
     }
 
-    # Prune change branches and tags that are up-to-date.
-    cmd join(' ', qw/git tag -d/,    keys %{$refs->{tags}})  if keys %{$refs->{tags}};
+    # Prune change branches that are up-to-date.
     cmd join(' ', qw/git branch -D/, keys %{$refs->{heads}}) if keys %{$refs->{heads}};
 
     # FIXME: We're not deleting change branches not associated with open changes yet!
 
-    # List all change branches and change tags
+    # List all change branches
     {
         local $Command = 'list';
         print "\n";
