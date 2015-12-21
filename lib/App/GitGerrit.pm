@@ -629,6 +629,15 @@ sub git_change_refs {
     return \%refs;
 }
 
+# A few sub-commands use the Text::Table module to produce well formatted
+# reports. This routine is a Text::Table factory which purpose is to avoid
+# the need to load Text::Table when it's not needed.
+
+sub new_table {
+    require Text::Table;
+    return Text::Table->new(@_);
+}
+
 # This routine receives a list of reference names and returns an array-ref of
 # strings in this format: "[*] REF SHA-1 SUBJECT". The '*' mark is only
 # present if REF is the HEAD branch.
@@ -636,8 +645,7 @@ sub git_change_refs {
 sub log_refs {
     my (@refs) = @_;
 
-    require Text::Table;
-    my $table = Text::Table->new(qw/REF LOG/);
+    my $table = new_table(qw/REF LOG/);
 
     my $current_branch = current_branch;
     my $format = -t STDOUT
@@ -878,8 +886,7 @@ $Commands{query} = sub {
         print "[$names[$i]=$queries[$i]]\n";
         next unless @{$changes->[$i]};
 
-        require Text::Table;
-        my $table = Text::Table->new("ID\n&num", qw/BRANCH STATUS SUBJECT OWNER CR/);
+        my $table = new_table("ID\n&num", qw/BRANCH STATUS SUBJECT OWNER CR/);
 
         foreach my $change (sort {$b->{updated} cmp $a->{updated}} @{$changes->[$i]}) {
             if ($Options{verbose}) {
@@ -973,8 +980,7 @@ EOF
         }
 
         # And now we can output the vote table
-        require Text::Table;
-        my $table = Text::Table->new('REVIEWER', map {"$_\n&num"} @labels);
+        my $table = new_table('REVIEWER', map {"$_\n&num"} @labels);
 
         foreach my $name (sort keys %reviewers) {
             my @votes = map {$_ > 0 ? "+$_" : $_} map {defined $_ ? $_ : '0'} @{$reviewers{$name}}{@labels};
@@ -1324,10 +1330,9 @@ $Commands{reviewer} = sub {
         my $reviewers = gerrit_or_die(GET => "/changes/$id/reviewers");
 
         print "[$id]\n";
-        require Text::Table;
         my %labels = map {$_ => undef} map {keys %{$_->{approvals}}} @$reviewers;
         my @labels = sort keys %labels;
-        my $table = Text::Table->new('REVIEWER', map {"$_\n&num"} @labels);
+        my $table = new_table('REVIEWER', map {"$_\n&num"} @labels);
         $table->add($_->{name}, @{$_->{approvals}}{@labels})
             foreach sort {$a->{name} cmp $b->{name}} @$reviewers;
         print $table->table(), '-' x 60, "\n";
@@ -1462,8 +1467,7 @@ $Commands{config} = sub {
     my $config = grok_config;
     my $git_gerrit = $config->{'git-gerrit'}
         or return;
-    require Text::Table;
-    my $table = Text::Table->new();
+    my $table = new_table();
     foreach my $var (sort keys %$git_gerrit) {
         foreach my $value (@{$git_gerrit->{$var}}) {
             $table->add("git-gerrit.$var", $value);
