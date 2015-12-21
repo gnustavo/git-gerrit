@@ -1476,13 +1476,17 @@ $Commands{config} = sub {
 
 $Commands{version} = sub {
     get_options;
+    local $| = 1;               # auto-flush
     print "Perl version $^V\n";
-    print "git-gerrit version $App::GitGerrit::VERSION\n";
+    print "git-gerrit version ";
+    print defined $App::GitGerrit::VERSION ? $App::GitGerrit::VERSION : 'undefined';
+    print "\n";
     cmd "git version";
     my $baseurl = config('baseurl'); # die unless configured
+    print "Gerrit version ";
     my $version = eval { gerrit(GET => '/config/server/version') };
     $version //= "pre-2.7 (Because it doesn't support the 'Get Version' REST Endpoint.)";
-    print "Gerrit version $version\n";
+    print "$version\n";
     return;
 };
 
