@@ -63,6 +63,41 @@ sub syntax_error {
     pod2usage "git-gerrit[SYNTAX]: $msg\n";
 }
 
+# A few sub-commands use the Text::Table module to produce well formatted
+# reports. This routine is a Text::Table factory which purpose is to avoid
+# the need to load Text::Table when it's not needed.
+
+sub new_table {
+    require Text::Table;
+    return Text::Table->new(@_);
+}
+
+# A few sub-commands use the File::Temp module. This routine is a File::Temp
+# factory which purpose is to avoid the need to load File::Temp when it's
+# not needed.
+
+sub new_file_temp {
+    require File::Temp;
+    return File::Temp->new();
+}
+
+# A few commands use the Term::Prompt::prompt routine but we don't want to
+# require the Term::Prompt module unless we have to.
+
+sub prompt {
+    require Term::Prompt;
+    return Term::Prompt::prompt(@_);
+}
+
+# A few sub-commands use the Data::Dumper::Dumper routine but we don't want
+# to require the Data::Dumper module unless we have to.
+
+sub dumper {
+    require Data::Dumper;
+    local $Data::Dumper::Indent = 1;
+    return Data::Dumper::Dumper(@_);
+}
+
 sub get_options {
     my (@opt_specs) = @_;
 
@@ -233,17 +268,16 @@ sub credential_description_file {
     my ($username) = url_userinfo($baseurl);
     $credential{username} = $username if $username;
 
-    require File::Temp;
-    my $fh = File::Temp->new();
+    my $tmp = new_file_temp();
 
     while (my ($key, $value) = each %credential) {
-        $fh->print("$key=$value\n") if $value;
+        $tmp->print("$key=$value\n") if $value;
     }
 
-    $fh->print("\n\n");
-    $fh->close();
+    $tmp->print("\n\n");
+    $tmp->close();
 
-    return ($fh, $fh->filename);
+    return ($tmp, $tmp->filename);
 }
 
 my $git_credential_supported = 1;
@@ -288,14 +322,13 @@ sub get_credentials {
     }
 
     unless (defined $username && defined $password) {
-        debug "Prompt the user for the credentials";
-        if (eval {require Term::Prompt}) {
-            $username = Term::Prompt::prompt('x', 'Gerrit username: ', '', $ENV{USER});
-            $password = Term::Prompt::prompt('p', 'Gerrit password: ', '');
+        eval {
+            debug "Prompt the user for the credentials";
+            $username = prompt('x', 'Gerrit username: ', '', $ENV{USER});
+            $password = prompt('p', 'Gerrit password: ', '');
             print "\n";
-        } else {
-            debug "Failed to require Term::Prompt";
-        }
+        };
+        warn "Failed to require Term::Prompt" if $@;
     }
 
     defined $username or error "Couldn't get credential's username";
@@ -330,8 +363,7 @@ sub get_message {
     error "Please, read 'git help var' to know how to set up an editor for git messages."
         unless $editor;
 
-    require File::Temp;
-    my $tmp = File::Temp->new();
+    my $tmp = new_file_temp();
     my $filename = $tmp->filename;
 
     {
@@ -384,8 +416,7 @@ sub gerrit {
         my ($endpoint, @args) = @_;
         debug "GERRIT->$method($endpoint)";
         if (@args) {
-            require Data::Dumper;
-            warn Data::Dumper::Dumper(@args);
+            warn dumper(@args);
         }
     }
 
@@ -462,9 +493,8 @@ sub my_changes {
     } else {
         $changes = query_changes(['is:open+AND+(owner:self+OR+reviewer:self)'], ['o=ALL_REVISIONS']);
 
-        require Data::Dumper;
         open my $fh, '>', $cache or error "Can't create $cache: $!\n";
-        print $fh Data::Dumper->new([$changes])->Indent(1)->Dump();
+        $fh->print(dumper([$changes]));
     }
 
     return $changes;
@@ -635,15 +665,6 @@ sub git_local_branches {
     return \%branches;
 }
 
-# A few sub-commands use the Text::Table module to produce well formatted
-# reports. This routine is a Text::Table factory which purpose is to avoid
-# the need to load Text::Table when it's not needed.
-
-sub new_table {
-    require Text::Table;
-    return Text::Table->new(@_);
-}
-
 # This routine receives a list of reference names and returns an array-ref of
 # strings in this format: "[*] REF SHA-1 SUBJECT". The '*' mark is only
 # present if REF is the HEAD branch.
@@ -680,16 +701,13 @@ sub log_refs {
 sub select_change_refs {
     my %opts = map {($_ => undef)} @_;
 
-    eval {require Term::Prompt}
-        or error "Failed to require Term::Prompt";
-
     my @refs = sort keys %{git_local_branches()};
 
     return unless @refs;
 
     my $title = wantarray ? 'Select one or more references' : 'Select one reference';
 
-    my @choices = Term::Prompt::prompt(
+    my @choices = prompt(
         'm',
         {
             prompt                     => 'Number?',
