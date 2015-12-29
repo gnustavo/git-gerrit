@@ -235,12 +235,11 @@ change and to check it out locally.
 
 =head2 Reviewing a change
 
-    git gerrit review =-1 1234
+    git gerrit review =-1
 
-After having studied a change with 'git show' you may record your review with
-the 'review' command identifying the change (e.g. 1234). If you omit the
-change ID you'll be prompted to chose among all the change branches in your
-local repository the one corresponding to the change you want to review.
+After having studied a change with 'git show' you may record your review
+with the 'review' sub-command. Like most of the sub-commands it applies to
+the change associated with the change-branch that is the current HEAD.
 
 Without git-gerrit you'd have to perform the review using Gerrit's web
 interface.
@@ -255,7 +254,7 @@ interface.
 To amend a change you first checkout its change-branch. Of course, you may do
 it with 'git checkout' specifying a change-branch. But the 'git gerrit
 checkout' command prompts you with a list of all change-branches for you to
-chose which one you'd like to checkout.
+choose which one you'd like to checkout.
 
 Then you can amend it and, finally, push it as another patchset to Gerrit.
 
@@ -340,9 +339,8 @@ server. Use it along with --debug to see what git-gerrit would do.
 Option names may be abbreviated to uniqueness, case does not matter, and a
 single dash is sufficient, even for long option names.
 
-Several sub-commands accept one or more change IDs as arguments. If you don't
-pass any ID you'll be prompted with a menu of all change-branches
-for you to chose from.
+Many of the sub-commands apply to the current branch, which must be a
+change-branch.
 
 =head2 git gerrit new [--update] [--onto COMMIT] TOPIC [UPSTREAM]
 
@@ -476,38 +474,47 @@ more than once, to invite more than a set of users.
 
 =head2 git gerrit list
 
-(Command B<list> alias: C<ls>.)
+(Command alias: C<ls>.)
 
-The B<list> sub-command lists all local topic branches, change-branches and
-change-tags in your local repository in this format:
+The B<list> sub-command lists all local topic branches and change-branches
+in your local repository in this format:
 
     change/topic1/2506    ea27239 [CDS-100] Testing
     change/topic2/2507  * c320795 [CDS-100] Remove .gitreview
     topic                 ea27239 [CDS-100] Testing
 
-=head2 git gerrit update [--[no]prune] [--offline]
+=head2 git gerrit update [--all] [--[no]prune] [--offline]
 
-(Command B<update> alias: C<up>.)
+(Command alias: C<up>.)
 
-The B<update> sub-command creates and/or updates the local change-branches
-associated with all open changes in Gerrit that you own or that you are a
-reviewer of. It also deletes (i.e., prunes) any existing change-branch not
-associated with an open change in Gerrit. At the end it invokes the B<list>
-sub-command to show the updated references.
+The B<update> sub-command updates the current branch, which must be a
+change-branch, reseting it to the latest patchset which is fetched from
+Gerrit. If your working area is dirty you'll be alerted and the branch won't
+be reset.
 
 =over
 
+=item B<--all>
+
+This option makes the command update all your change-branches. It creates
+and/or updates the local change-branches associated with all open changes in
+Gerrit that you own or that you are a reviewer of. It also deletes (i.e.,
+prunes) any existing change-branch not associated with an open change in
+Gerrit. At the end it invokes the B<list> sub-command to show the updated
+references.
+
 =item B<--[no]prune>
 
-By default, existing change-branches not associated with any
-open change are pruned, unless you pass the C<--noprune> option.
+If you use the B<--all> option, existing change-branches not associated with
+any open change are pruned, unless you pass the C<--noprune> option.
 
 =item B<--offline>
 
-This avoids querying Gerrit and reuses the cached response from the previous
-update. Since querying Gerrit can take a few seconds you may not want to wait
-everytime. This may be useful if you invoked C<git gerrit prune> and changed
-your mind.
+If you use the B<--offline> option along with the B<--all> option, this
+avoids querying Gerrit and reuses the cached response from the previous
+update. Since querying Gerrit can take a few seconds you may not want to
+wait everytime. This may be useful if you invoked C<git gerrit prune> and
+changed your mind.
 
 =back
 
@@ -644,7 +651,7 @@ If no CHANGE is specified, you'll be prompted to chose some.
 
 =head2 git gerrit checkout [--update]
 
-(Command B<checkout> alias: C<co>.)
+(Command alias: C<co>.)
 
 The B<checkout> sub-command prompts you to select an existing change-branch
 to checkout.
@@ -676,7 +683,7 @@ user to select a reference.
 
 =head2 git gerrit upstream [--prune]
 
-(Command B<upstream> alias: C<ups>.)
+(Command alias: C<ups>.)
 
 The B<upstream> sub-command should be invoked when you're in a
 change-branch. It checks out the upstream branch.
@@ -693,7 +700,7 @@ topic name.
 
 =head2 git gerrit cherry-pick [--edit] [--no-commit] [CHANGE ...]
 
-(Command B<cherry-pick> alias: C<pick>.)
+(Command alias: C<pick>.)
 
 The B<cherry-pick> sub-command invokes the B<fetch> sub-command to fetch a
 list of CHANGES from Gerrit and to create local change-branches for them. Then
