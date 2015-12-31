@@ -83,6 +83,18 @@ sub prompt {
     return IO::Prompter::prompt(@_);
 }
 
+sub menu {
+    my ($question, $items) = @_;
+    require IO::Prompter;
+    return IO::Prompter::prompt(
+        $question, "\n",
+        (@$items <= 52 ? -single : -number),
+        -verbatim,
+        -menu => $items,
+        '>',
+    );
+}
+
 # Data::Dumper::Dumper trampoline
 
 sub dumper {
@@ -278,11 +290,9 @@ sub gerrit_remote {
         if (@remotes == 1) {
             $remote = $remotes[0];
         } else {
-            $remote = prompt(
+            $remote = menu(
                 'Which one is the Gerrit remote?',
-                -single,
-                -verbatim,
-                -menu => [ map {"$_\t$config->{remote}{'$_.url'}"} sort @remotes ],
+                [ map {"$_\t$config->{remote}{'$_.url'}"} sort @remotes ],
             );
             # Configure it so we don't have
             cmd("git config --local git-gerrit.remote $remote");
@@ -502,16 +512,10 @@ sub gerrit {
     my $method = shift;
 
     state $gerrit;
+    state ($username, $password, $authorization);
     unless ($gerrit) {
-        my ($username, $password) = get_credentials;
+        ($username, $password) = get_credentials;
         $gerrit = new_gerrit_rest(config('baseurl'), $username, $password);
-        eval { $gerrit->GET("/projects/" . uri_escape_utf8(config('project'))) };
-        if (my $error = $@) {
-            set_credentials($username, $password, 'reject') if ref $error && $error->{code} == 401;
-            die $error;
-        } else {
-            set_credentials($username, $password, 'approve');
-        }
     }
 
     if ($Options{debug}) {
@@ -524,7 +528,18 @@ sub gerrit {
 
     return 1 if $Options{noop} && $method ne 'GET';
 
-    return $gerrit->$method(@_);
+    my $res = eval { $gerrit->$method(@_) };
+    if (my $error = $@) {
+        if (! defined $authorization) {
+            $authorization = 1;
+            set_credentials($username, $password, 'reject') if ref $error && $error->{code} == 401;
+        }
+        die $error;
+    } elsif (! defined $authorization) {
+        $authorization = 1;
+        set_credentials($username, $password, 'approve');
+    }
+    return $res;
 }
 
 # The gerrit_or_die routine relays its arguments to the gerrit routine but
@@ -534,7 +549,13 @@ sub gerrit {
 
 sub gerrit_or_die {
     my $result = eval { gerrit(@_) };
-    die $@->as_text if $@;
+    if (my $error = $@) {
+        if (ref $error) {
+            die $error->as_text;
+        } else {
+            die "$error\n";
+        }
+    }
     return $result;
 }
 
@@ -897,12 +918,7 @@ sub choose_line_from_command {
     my @lines = qx/$cmd/
         or error("$Command: there's no $what to select from");
 
-    return prompt(
-        "Choose one $what:\n",
-        (@lines <= 52 ? -single : -number),
-        -menu    => \@lines,
-        -verbatim,
-    );
+    return menu("Choose one $what:" => \@lines);
 }
 
 # This routine is used by all sub-commands that accept zero or more change
@@ -931,6 +947,125 @@ sub grok_change_args {
 sub git_status {
     return qx/git status --porcelain --untracked-files=no/;
 }
+
+# Update_changes updates the changes identified by the numeric change IDs
+# passed to it. If no IDs are passed, it updates all changes the user is
+# interested in. Non-existing change-branches are created. Existing
+# change-branches are updated to the latest patchset or removed if the
+# change has been merged or abandoned, unless they have been locally
+# amended.
+#
+# The first argument ($branches) is a hash-ref containing the description of
+# all change-branches as returned by an invocation of
+# grok_references('refs/heads/changes/'). The second argument ($head) is a
+# hash-ref describing the change-branch in HEAD, or undef if HEAD isn't a
+# change-branch. This routine is used by the sub-commands 'update' and
+# 'push'.
+#
+# The routine respects the settings of the following options: offline,
+# prune, and all.
+
+sub update_changes {
+    my ($branches, $head, @ids) = @_;
+
+    # Grok all changes that must be updated
+    my $changes = do {
+        my @terms;
+        if (@ids) {
+            # The --prune option makes sense only if we're updating
+            # everything.
+            $Options{prune} = 0;
+            @terms = map {"change:$_"} @ids;
+        } else {
+            @terms = (
+                # I'm interested in my own changes and the in the ones I've
+                # been invited to review. But only if they're still open.
+                '(is:open+AND+(owner:self+OR+reviewer:self))',
+                # And also, in any other change associated with an existing
+                # change-branch.
+                map {"change:$_->{id}"}
+                grep {$_->{is_change} && defined $_->{id}}
+                values %$branches,
+            );
+        }
+        # I'm only interested in open changes
+        query_changes(['is:open+AND+(' . join('+OR+', @terms) . ')'], ['o=ALL_REVISIONS']);
+    };
+
+    # Let's iterate through each change and see if we need to updated the
+    # local change-branch associated with it. We do this by building a hash
+    # mapping the change-branches that need updating to their corresponding
+    # remote references, so that we can build the necessary refspecs for a
+    # git-fetch command later. We have to treat HEAD specially. We also
+    # track the branches that have to be pruned.
+
+    my (%fetch, $head_ref, $is_clean, @prunes);
+    foreach my $change (@{$changes->[0]}) {
+        my $id = $change->{_number};
+
+        # Construct the change-branch name for the change
+        my $ref = 'change/' . (defined $change->{topic} ? "$change->{topic}/" : '') . $id;
+
+        # Check the change branch
+        if (my $branch = delete $branches->{$ref}) {
+            # The change branch exists already.
+            if ($branch->{sha1} eq $change->{current_revision}) {
+                info("$Command: $ref is up-to-date");
+                push @prunes, $ref
+                    if $ref ne $head->{name} && $change->{status} =~ /MERGED|ABANDONED/;
+            } elsif (exists $change->{revisions}{$branch->{sha1}}) {
+                info("$Command: $ref must be updated to the latest patchset");
+                if ($ref eq $head->{name}) {
+                    # $ref is the current HEAD so we have to be careful not
+                    # to update it if the working tree is dirty.
+                    $head->{is_clean} = git_status() eq '';
+                    info("    but it is HEAD and your working tree is dirty, so it will be left unchanged.")
+                        unless $head->{is_clean};
+                    $head->{current_revision} = $change->{current_revision};
+                    $head->{ref} = $change->{revisions}{$change->{current_revision}}{fetch}{http}{ref};
+                } elsif ($change->{status} =~ /MERGED|ABANDONED/) {
+                    push @prunes, $ref;
+                } else {
+                    $fetch{$ref} = $change->{revisions}{$change->{current_revision}}{fetch}{http}{ref};
+                }
+            } else {
+                info("$Command: $ref was amended locally so it will be left unchanged");
+            }
+        } else {
+            # The change branch doesn't exist yet. Let's remember to fetch it.
+            info("$Command: $ref must be fetched");
+            $fetch{$ref} = $change->{revisions}{$change->{current_revision}}{fetch}{http}{ref};
+        }
+    }
+
+    # We'll update all change branches and upstream branches with a single
+    # git-fetch. This array will contain all refspecs to pass to git fetch
+    # below.
+    my @refspecs;
+
+    # Grok refspecs for missing change branches
+    while (my ($lpath, $rpath) = each %fetch) {
+        push @refspecs, "+$rpath:$lpath"
+    }
+    push @refspecs, $head->{ref} if exists $head->{ref};
+
+    if (@refspecs) {
+        my $remote = gerrit_remote();
+        cmd("git fetch $remote '" . join("' '", @refspecs) . "'");
+        cmd("git reset --hard $head->{current_revision}")
+            if exists $head->{current_revision} && $head->{is_clean};
+    }
+
+    # There should be no change-branch left on @$branches because we
+    # specifically searched for all of them.
+
+    # Prune change branches that don't have corresponding changes
+    cmd(join(' ', 'git branch -D', @prunes))
+        if @prunes && ! @ids;
+
+    return;
+}
+
 
 ############################################################
 # MAIN
@@ -963,16 +1098,11 @@ $Commands{new} = sub {
         # Choose only among the Gerrit remote's branches.
         my $remote = gerrit_remote();
         my $refs = git_show_ref();
-        my @upstreams = sort map {m: refs/remotes/(.*):} grep {m: refs/remotes/\Q$remote\E:} keys @$refs;
+        my @upstreams = sort map {m:^refs/remotes/(.*):} grep {m:^refs/remotes/\Q$remote\E:} keys %$refs;
         if (@upstreams == 1) {
             $upstreams[0];
         } else {
-            prompt(
-                'What upstream do you want to change?',
-                -single,
-                -verbatim,
-                \@upstreams,
-            );
+            menu('What upstream do you want to change?' => \@upstreams);
         }
     };
 
@@ -989,22 +1119,24 @@ $Commands{push} = sub {
     $Options{rebase} = '';      # false by default
     get_options qw( prune force+ rebase! draft topic=s submit base=s reviewer=s@ cc=s );
 
-    my $branches = grok_references('refs/heads/');
+    my $branches = grok_references('refs/heads/change/');
 
     my $head = first {$_->{is_head}} values %$branches
-        or error("$Command: You are in a dettached head state. I don't know what to push.");
-
-    $head->{is_change}
-        or error("$Command: You aren't in a change branch ($head->{name}). I cannot push it.");
+        or error("$Command: You must be in a change branch to push it.");
 
     my $is_clean = git_status() eq '';
 
-    exit 0 unless $is_clean || $Options{force}-- || prompt('Your working area is dirty. Do you really want to push?', -yes);
+    exit 0 unless
+        $is_clean
+        || $Options{force}--
+        || prompt('Your working area is dirty. Do you really want to push?', -yes);
 
     if (! exists $head->{ahead}) {
-        error("$Command: $head->{name} hasn't diverged from $head->{upstream} yet . Pushing would be pointless.");
+        error("$Command: $head->{name} hasn't diverged from $head->{upstream}. Pushing would be pointless.");
     } elsif ($head->{ahead} > 1) {
-        exit 0 unless $Options{force}-- || prompt("You are about to push $head->{ahead} commits. Are you sure?", -yes);
+        exit 0 unless
+            $Options{force}--
+            || prompt("You are about to push $head->{ahead} commits. Are you sure?", -yes);
     }
 
     # Rebase to upstream if possible.
@@ -1012,9 +1144,15 @@ $Commands{push} = sub {
             && $is_clean
             && (@{$head->{parents}} < 2)
             && ($Options{rebase} || ! defined $head->{id})) {
+        info("$Command: rebasing to $head->{upstream} before first push");
+        # First we update the remote branches
         cmd("git remote update $head->{remote}");
+        # Then we rebase
         cmd("git rebase $head->{upstream}")
             or error("$Command: please resolve this 'git rebase $head->{upstream}' and try again.");
+        # And finally we update the HEAD's SHA-1
+        $head->{sha1} = qx/git rev-parse HEAD/
+            or error("PANIC: failed 'git rev-parse HEAD': $!");
     }
 
     my $refspec = 'HEAD:refs/' . ($Options{draft} ? 'drafts' : 'for') . "/$head->{upbranch}";
@@ -1024,14 +1162,16 @@ $Commands{push} = sub {
         push @tags, "topic=$topic";
     }
 
-    my @reviewers = (! $Options{draft} && ! defined $head->{id})
-        ? auto_reviewers($head->{upbranch})
-        : ();
-    if (my $reviewers = $Options{reviewer}) {
-        push @reviewers, split(/,/, join(',', @$reviewers));
-    }
-    if (@reviewers) {
-        push @tags, map("r=$_", @reviewers);
+    {
+        # Invite auto-reviewers unless it's a draft or we're pushing a new
+        # patchset of an existing change.
+        my @reviewers = (! $Options{draft} && ! defined $head->{id})
+            ? auto_reviewers($head->{upbranch})
+            : ();
+        if (my $reviewers = $Options{reviewer}) {
+            push @reviewers, split(/,/, join(',', @$reviewers));
+        }
+        push @tags, map("r=$_", @reviewers) if @reviewers;
     }
 
     if (my $ccs = $Options{cc}) {
@@ -1049,52 +1189,46 @@ $Commands{push} = sub {
     }
 
     # Now we git-push the $refspec and grok from the commands STDERR the ids
-    # of the changes created or updated on Gerrit. The general format of the
-    # git-push command STDERR is like this:
+    # of the new or updated changes on Gerrit, which are shown by the
+    # ReceiveCommits's formatChangeUrl method in the Gerrit code, in a
+    # format like this:
 
-    # Counting objects: 3, done.
-    # Delta compression using up to 4 threads.
-    # Compressing objects: 100% (2/2), done.
-    # Writing objects: 100% (3/3), 317 bytes | 0 bytes/s, done.
-    # Total 3 (delta 1), reused 0 (delta 0)
-    # remote: Resolving deltas: 100% (1/1)
-    # remote: 
-    # remote: Processing changes: new: 1, refs: 1, done    
-    # remote: 
     # remote: New Changes:
     # remote:   https://gerrit.cpqd.com.br/18217 Teste
-    # remote: 
+    # remote:
     # remote: Updated Changes:
     # remote:   https://gerrit.cpqd.com.br/18216 Teste
-    # remote: 
-    # To https://gustavo@gerrit.cpqd.com.br/sandbox/helloworld
-    #  * [new branch]      HEAD -> refs/for/master
 
     # We look for lines beginning with 'remote: http' and grok the URL ids
     # in @changes.
 
-    my @changes;
-    {
-        open my $push, "git push $head->{remote} $refspec 2>&1"
-            or error("$Command: cannot open git-push: $!");
-        while (<$push>) {
-            push @changes, $1 if m@^remote:\s+http.+?/(\d+) @;
-        }
-        close $push or error("$Command: cannot close git-push: $!");
+    my @change_ids;
+    foreach (pipe_from("git push $head->{remote} $refspec 2>&1")) {
+        push @change_ids, $1 if m@^remote:\s+http.+?/(\d+)\s@;
     }
 
-    update_changes(@changes);
+    if (@change_ids) {
+        update_changes($branches, $head, @change_ids);
 
-    if ($is_clean && $Options{prune}) {
-        cmd("git checkout $head->{upstream}") and cmd("git branch -D $head->{name}");
-    } else {
-        chomp(my $sha1 = qx/git rev-list -1 HEAD/);
-        my $queries = query_changes(["commit:$sha1"]);
-        if (@{$queries->[0]}) {
-            my $change = $queries->[0][0];
-            cmd("git branch -m $head->{name} $change->{branch}/$change->{_number}");
-        } else {
-            error("$Command: Gerrit didn't find the commit just pushed!!!");
+        if ($is_clean && $Options{prune}) {
+            cmd("git checkout $head->{upstream}") and cmd("git branch -D $head->{name}");
+        } elsif (! defined $head->{id}) {
+            # Rename the current branch by tacking the change_id to it
+            if (@change_ids == 1) {
+                # If we pushed just one change we know its change-id from
+                # the git-push output already.
+                cmd("git branch -m $head->{name} $head->{name}/$change_ids[0]");
+            } else {
+                # Else, we have to ask Gerrit because we can't be sure about
+                # which one corresponds to the current change-branch.
+                my $queries = query_changes(["commit:$head->{sha1}"]);
+                if (@{$queries->[0]}) {
+                    my $change = $queries->[0][0];
+                    cmd("git branch -m $head->{name} $head->{name}/$change->{_number}");
+                } else {
+                    error("$Command: Gerrit didn't find the commit just pushed!!!");
+                }
+            }
         }
     }
 
@@ -1281,113 +1415,20 @@ $Commands{update} = sub {
     $Options{prune} = 1;        # true by default
     get_options qw( all prune! offline );
 
-    my $branches = grok_references('refs/heads/');
+    my $branches = grok_references('refs/heads/change/');
 
     my $head = first {$_->{is_head}} values %$branches;
 
-    # Grok all changes that must be updated
-    my $changes = do {
-        if ($Options{all}) {
-            # Grok every open change having me as owner or reviewer.
-            my_changes($Options{offline});
-        } elsif (! $head || ! $head->{is_change}) {
-            error("$Command: you're not in a change-branch");
-        } elsif (defined $head->{id}) {
-            # The --prune and the --offline options just make sense with the --all option.
-            $Options{prune} = $Options{offline} = 0;
-            query_changes(["change:$head->{id}"], ['o=ALL_REVISIONS']);
-        } else {
-            error("$Command: you're in a change-branch that hasn't been pushed yet");
-        }
-    };
-
-    # Let's iterate through each change and see if we need to updated the
-    # local change-branch associated with it. We do this by building a hash
-    # mapping the change-branches that need updating to their corresponding
-    # remote references, so that we can build the necessary refspecs for a
-    # git-fetch command later. We have to treat HEAD specially.
-
-    my (%fetch, $head_ref, $is_clean);
-    foreach my $change (@{$changes->[0]}) {
-        my $id = $change->{_number};
-
-        # Construct the change-branch name for the change
-        my $ref = 'change/' . (defined $change->{topic} ? "$change->{topic}/" : '') . $id;
-
-        # Check the change branch
-        if (my $branch = delete $branches->{$ref}) {
-            # The change branch exists already.
-            if ($branch->{sha1} eq $change->{current_revision}) {
-                info("$Command: $ref is up-to-date");
-            } elsif (exists $change->{revisions}{$branch->{sha1}}) {
-                # The change-branch points to an old patchset.
-                if ($ref eq $head->{name}) {
-                    # $ref is the current HEAD so we have to be careful not
-                    # to update it if the working tree is dirty.
-                    info("$Command: $ref is the current HEAD and must updated");
-                    $head->{is_clean} = git_status() eq '';
-                    info("    but your working tree is dirty, so it will be left unchanged.")
-                        unless $head->{is_clean};
-                    $head->{current_revision} = $change->{current_revision};
-                    $head->{ref} = $change->{revisions}{$change->{current_revision}}{fetch}{http}{ref};
-                } else {
-                    info("$Command: $ref must be updated");
-                    $fetch{$ref} = $change->{revisions}{$change->{current_revision}}{fetch}{http}{ref};
-                }
-            } else {
-                info("$Command: $ref was amended locally so it will be left unchanged");
-            }
-        } else {
-            # The change branch doesn't exist yet. Let's remember to fetch it.
-            info("$Command: $ref must be fetched");
-            $fetch{$ref} = $change->{revisions}{$change->{current_revision}}{fetch}{http}{ref};
-        }
-    }
-
-    # We'll update all change branches and upstream branches with a single
-    # git-fetch. This array will contain all refspecs to pass to git fetch
-    # below.
-    my @refspecs;
-
-    # Grok refspecs for missing change branches
-    while (my ($lpath, $rpath) = each %fetch) {
-        push @refspecs, "+$rpath:$lpath"
-    }
-    push @refspecs, $head->{ref} if exists $head->{ref};
-
-    if (@refspecs) {
-        my $remote = gerrit_remote();
-        cmd("git fetch $remote '" . join("' '", @refspecs) . "'");
-        cmd("git reset --hard $head->{current_revision}")
-            if exists $head->{current_revision} && $head->{is_clean};
-    }
-
-    # Prune change branches that don't have corresponding changes
-    if ($Options{all} && $Options{prune} && ! $Options{offline} && keys %{$branches}) {
-        # We have to make sure none of these change branches were amended
-        # locally. So, we query Gerrit for their SHA-1's.
-        my $changes = query_changes(['(+', join('+OR+', map {"commit:$_->{sha1}"} values %{$branches}), '+)']);
-
-        # Collect in @prune the change-branches that aren't amended.
-        my @prune;
-        foreach my $change (@{$changes->[0]}) {
-            my $topic = exists $change->{topic} ? "$change->{topic}/" : '';
-            my $ref = "change/$topic$change->{_number}";
-            if (delete $branches->{"refs/heads/$ref"}) {
-                # Since we queried Gerrit by the change-branches SHA-1s if
-                # they found them remotely it means that they weren't
-                # amended locally.
-                push @prune, $ref;
-            }
-        }
-
-        # Prune change-branches
-        cmd(join(' ', qw/git branch -D/, @prune)) if @prune;
-
-        # Any change-branch left must have been amended locally.
-        foreach my $branch (sort map {substr($_, length('refs/heads/'))} keys %{$branches}) {
-            info("$Command: $branch has been amended locally so it won't be pruned.");
-        }
+    if ($Options{all}) {
+        update_changes($branches, $head);
+    } elsif (! $head) {
+        error("$Command: you're not in a change-branch");
+    } elsif (! defined $head->{id}) {
+        error("$Command: you're in a change-branch that hasn't been pushed yet");
+    } else {
+        # The --prune and the --offline options just make sense with the --all option.
+        $Options{prune} = $Options{offline} = 0;
+        update_changes($branches, $head, $head->{id});
     }
 
     # List all change branches
@@ -1452,7 +1493,7 @@ $Commands{checkout} = sub {
         $Commands{update}->();
     };
 
-    if (my $line = choose_line_from_command('change-branch' => "git branch --list -vv 'change/*'")) {
+    if (my $line = menu('What change-branch do you want to checkout?' => [qx:git branch --list -vv 'change/*':])) {
         my ($branch) = split ' ', $line, 2;
         # The current branch is identified by an '*' before its name. So, if
         # $branch eq '*' it means we're already at the current branch and we
@@ -1485,30 +1526,7 @@ $Commands{merge} = sub {
     cmd(join(' ', 'git merge --no-ff', @refs));
 };
 
-$Commands{upstream} = $Commands{ups} = sub {
-    $Command = 'upstream';
-
-    get_options qw( prune );
-
-    my $branch = change_branch_info(current_branch);
-    if (my $upstream = $branch->{upstream}) {
-        if (cmd("git checkout $upstream")) {
-            if ($Options{prune} && defined $branch->{id}) {
-                cmd("git branch -D $branch->{name}");
-            } else {
-                info("Keeping $branch->{name}");
-            }
-        }
-    } else {
-        error("$Command: You aren't in a change branch. There is no upstream to go to.");
-    }
-
-    return;
-};
-
-$Commands{'cherry-pick'} = $Commands{pick} = sub {
-    $Command = 'cherry-pick';
-
+$Commands{'cherry-pick'} = sub {
     get_options qw( edit no-commit );
 
     my @args;
@@ -1745,15 +1763,13 @@ sub run {
     if (@matches == 0 && $Command ne '') {
         error("Invalid command '$Command'");
     } elsif (@matches == 1) {
-        $Command = $matches[0];
+        if ($Command ne $matches[0]) {
+            $Command = $matches[0];
+            warn "$Command\n";
+        }
     } else {
         @matches = keys %Commands unless @matches;
-        $Command = prompt(
-            "What do you want to do?\n",
-            -single,
-            -menu => [sort @matches],
-            -verbatim,
-        );
+        $Command = menu("What do you want to do?", [sort @matches]);
         warn "$Command\n";
     }
 
