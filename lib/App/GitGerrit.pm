@@ -25,7 +25,7 @@ use Data::Dump;
 use Getopt::Long qw(:config auto_version auto_help);
 use URI;
 use URI::Escape;
-use List::Util qw/first/;
+use List::Util qw/all first/;
 
 # App::GitGerrit was converted from a script into a module following this:
 # http://elliotlovesperl.com/2009/11/23/how-to-structure-perl-programs/
@@ -193,8 +193,64 @@ sub pipe_from {
     debug($cmd);
     open my $pipe, '-|', @cmd or error("can't open command '$cmd': $!");
     chomp(my @lines = <$pipe>);
-    close $pipe or error("can't close command '$cmd': $!");
+    close $pipe or error(join("\n", "can't close command '$cmd':", map {"  $_"} @lines));
     return @lines;
+}
+
+# Grok_basic_config checks if the basic git-gerrit configuration is set and,
+# if not, tries to set it up using heuristics or prompting the user.
+
+sub grok_basic_config {
+    my ($config) = @_;
+
+    my $gg = $config->{'git-gerrit'};
+
+    unless (exists $gg->{remote}) {
+        $config->{remote} //= {};
+        my @remotes = map {/(.*)\.url/} grep {/\.url$/} keys %{$config->{remote}};
+        error("Please, configure a Git remote for the Gerrit repository") if @remotes == 0;
+        $gg->{remote} = [
+            (@remotes == 1)
+            # If there's only one remote we assume it's the Gerrit one.
+            ? $remotes[0]
+            # Otherwise, we ask the user.
+            : menu(
+                'Which one is the Gerrit remote?',
+                [ map {"$_\t$config->{remote}{'$_.url'}"} sort @remotes ],
+            )
+        ];
+        # Configure it so we don't have to ask again.
+        cmd("git config --local git-gerrit.remote $gg->{remote}[-1]");
+    }
+
+    unless (exists $gg->{baseurl} && exists $gg->{project}) {
+        # If either the baseurl or the projet isn't defined we'll try to
+        # grok them from the remote's URL.
+        my $remote = $gg->{remote}[-1];
+        my $url = $config->{remote}{"$remote.url"}[-1]
+            or error("Remote '$remote' is missing the remote.$remote.url configuration");
+        $url = URI->new($url);
+
+        unless (exists $gg->{baseurl}) {
+            my $baseurl = $url->scheme . '://' . $url->authority;
+            $baseurl =~ s:/+$::; # strip trailing slashes
+            $gg->{baseurl} = [$baseurl];
+            # Configure it so we don't have to ask again.
+            cmd("git config --local git-gerrit.baseurl $baseurl");
+        }
+
+        unless ($gg->{project}) {
+            # Unless specified, we assume that the Gerrit project is the
+            # path part of the remote's URL.
+            my $path = $url->path;
+            $path =~ s:/+$::;   # strip trailing slashes
+            $gg->{project} = [$path];
+            # Configure it so we don't have to ask again.
+            cmd("git config --local git-gerrit.project $path");
+        }
+    }
+
+    return;
 }
 
 # The grok_config routine returns a hash-ref mapping every Git configuration
@@ -212,49 +268,7 @@ sub grok_config {
                 info("Strange git-config output: $_");
             }
         }
-
-        # Unless specified, we assume that the 'origin' remote is the one
-        # referring to the Gerrit server.
-
-        $config->{'git-gerrit'}{remote} //= ['origin'];
-
-        my $remote_url = sub {
-            state $url;
-            unless ($url) {
-                my $remote = $config->{'git-gerrit'}{remote}[-1];
-                $url = $config->{remote}{"$remote.url"}[-1]
-                    or error("The remote '$remote' isn't configured because there's no remote.$remote.url configuration");
-                $url = URI->new($url);
-            }
-            return $url;
-        };
-
-        unless ($config->{'git-gerrit'}{baseurl}) {
-            my $url = $remote_url->();
-            $config->{'git-gerrit'}{baseurl} = [$url->scheme . '://' . $url->authority];
-        }
-        $config->{'git-gerrit'}{baseurl}[-1] =~ s:/+$::; # strip trailing slashes
-
-        # Unless specified, we assume that the Gerrit project is the path
-        # part of the remote's URL.
-
-        unless ($config->{'git-gerrit'}{project}) {
-            my $prefix = URI->new($config->{'git-gerrit'}{baseurl}[-1])->path;
-            my $path   = $remote_url->()->path;
-            if (length $prefix) {
-                $prefix eq substr($path, 0, length($prefix))
-                    or error(<<EOF);
-I can't grok git-gerrit.project because git-gerrit.baseurl's path
-doesn't match git-gerrit.remote's path:
-
-* baseurl: 
-EOF
-                $config->{'git-gerrit'}{project} = [substr($path, length($prefix))];
-            } else {
-                $config->{'git-gerrit'}{project} = [$path];
-            }
-        }
-        $config->{'git-gerrit'}{project}[-1] =~ s:^/+::; # strip leading slashes
+        grok_basic_config($config);
     }
 
     return $config;
@@ -1108,7 +1122,7 @@ $Commands{new} = sub {
 
     my $onto = $Options{onto} || $upstream;
 
-    cmd("git checkout -b change/$topic $onto") && cmd("git commit --allow-empty -mnew");
+    cmd("git checkout -b change/$topic $onto") && cmd("git commit --allow-empty --quiet -mnew");
 
     install_commit_msg_hook;
 
@@ -1117,7 +1131,7 @@ $Commands{new} = sub {
 
 $Commands{push} = sub {
     $Options{rebase} = '';      # false by default
-    get_options qw( prune force+ rebase! draft topic=s submit base=s reviewer=s@ cc=s );
+    get_options qw( force+ rebase! draft topic=s submit base=s reviewer=s@ cc=s update );
 
     my $branches = grok_references('refs/heads/change/');
 
@@ -1146,13 +1160,15 @@ $Commands{push} = sub {
             && ($Options{rebase} || ! defined $head->{id})) {
         info("$Command: rebasing to $head->{upstream} before first push");
         # First we update the remote branches
-        cmd("git remote update $head->{remote}");
+        cmd("git remote update $head->{remote}")
+            if $Options{update};
         # Then we rebase
-        cmd("git rebase $head->{upstream}")
+        cmd("git rebase --quiet $head->{upstream}")
             or error("$Command: please resolve this 'git rebase $head->{upstream}' and try again.");
         # And finally we update the HEAD's SHA-1
         $head->{sha1} = qx/git rev-parse HEAD/
             or error("PANIC: failed 'git rev-parse HEAD': $!");
+        chomp $head->{sha1};
     }
 
     my $refspec = 'HEAD:refs/' . ($Options{draft} ? 'drafts' : 'for') . "/$head->{upbranch}";
@@ -1203,31 +1219,45 @@ $Commands{push} = sub {
     # in @changes.
 
     my @change_ids;
-    foreach (pipe_from("git push $head->{remote} $refspec 2>&1")) {
+    foreach (pipe_from("git push $head->{upremote} $refspec 2>&1")) {
         push @change_ids, $1 if m@^remote:\s+http.+?/(\d+)\s@;
     }
 
-    if (@change_ids) {
+    if (@change_ids == 1) {
+        # If we pushed just one change we know its change-id from the
+        # git-push output already.
+        if (! defined $head->{id}) {
+            # If this was the first time we pushed the change-branch we
+            # rename it by tacking the change-id to it.
+            my $newname = "$head->{name}/$change_ids[0]";
+            info("$Command: renaming the change-branch to $newname");
+            cmd("git branch -m $head->{name} $newname");
+        }
+    } elsif (@change_ids > 1) {
+        # If we pushed more than one change we have to update them all.
+        info("$Command: updating the change-branches of the pushed changes: " . join(' ', @change_ids));
         update_changes($branches, $head, @change_ids);
+        if (! defined $head->{id}) {
+            # If this was the first time we pushed the change-branch the
+            # updating we did must have created a new change-branch for it
+            # with a numeric id. We have to see which one it is, check it
+            # out, and remove the current branch.
 
-        if ($is_clean && $Options{prune}) {
-            cmd("git checkout $head->{upstream}") and cmd("git branch -D $head->{name}");
-        } elsif (! defined $head->{id}) {
-            # Rename the current branch by tacking the change_id to it
-            if (@change_ids == 1) {
-                # If we pushed just one change we know its change-id from
-                # the git-push output already.
-                cmd("git branch -m $head->{name} $head->{name}/$change_ids[0]");
-            } else {
-                # Else, we have to ask Gerrit because we can't be sure about
-                # which one corresponds to the current change-branch.
-                my $queries = query_changes(["commit:$head->{sha1}"]);
-                if (@{$queries->[0]}) {
-                    my $change = $queries->[0][0];
-                    cmd("git branch -m $head->{name} $head->{name}/$change->{_number}");
+            # First, let's refresh our knowledge about the change-branches
+            # to grok the ones created by the update.
+            $branches = grok_references('refs/heads/change/');
+
+            if (my $newhead = first {$_ ne $head->{name} && $branches->{$_} eq $head->{sha1}} keys %$branches) {
+                # But we can only checkout another branch if our working
+                # area clean.
+                if ($is_clean) {
+                    info("$Command: checking out the new change-branch $newhead->{name}");
+                    cmd("git checkout $newhead->{name} && git branch -D $head->{name}");
                 } else {
-                    error("$Command: Gerrit didn't find the commit just pushed!!!");
+                    info("$Command: cannot checkout the new change-branch $newhead->{name} because the working area is dirty");
                 }
+            } else {
+                error("$Command: couldn't find the new change-branch for the current change-branch");
             }
         }
     }
@@ -1770,7 +1800,11 @@ sub run {
     } else {
         @matches = keys %Commands unless @matches;
         $Command = menu("What do you want to do?", [sort @matches]);
-        warn "$Command\n";
+        if ($Command) {
+            warn "$Command\n";
+        } else {
+            exit 0;
+        }
     }
 
     $Commands{$Command}->();
