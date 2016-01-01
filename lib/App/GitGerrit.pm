@@ -1723,9 +1723,8 @@ $Commands{web} = sub {
     Getopt::Long::Configure('pass_through');
     get_options;
 
-    # If the user is passing any option we require that it mark where
-    # they end with a '--' so that we know where the CHANGEs arguments
-    # start.
+    # If the user is passing any option we require that she marks where they
+    # end with a '--' so that we know where the CHANGEs arguments start.
     my @options;
     for (my $i = 0; $i < @ARGV; ++$i) {
         if ($ARGV[$i] eq '--') {
@@ -1737,25 +1736,28 @@ $Commands{web} = sub {
         }
     }
 
-    # Grok the URLs of each change
-    my @urls;
-    my $baseurl = config('baseurl');
-    foreach my $id (grok_change_args) {
-        my $change = get_change($id);
-        push @urls, "$baseurl/#/c/$change->{_number}";
+    my $head = qx/git rev-parse --abbrev-ref HEAD/
+        or error("$Command: command git-rev-parse failed: $!");
+
+    if ($head =~ m:^change/[\w-]+/(\d+):) {
+        my $id = $1;
+        my $url = config('baseurl') . "/$id";
+        push @options, $url;
+        cmd(join(' ', qw/git web--browse/, @options));
+    } else {
+        error("$Command: Please, checkout a change-branch before.");
     }
 
-    cmd(join(' ', qw/git web--browse/, @options, @urls));
+    return;
 };
 
 $Commands{config} = sub {
     get_options;
     my $config = grok_config;
-    my $git_gerrit = $config->{'git-gerrit'}
-        or return;
+    my $gg = $config->{'git-gerrit'};
     my $table = new_table();
-    foreach my $var (sort keys %$git_gerrit) {
-        foreach my $value (@{$git_gerrit->{$var}}) {
+    foreach my $var (sort keys %$gg) {
+        foreach my $value (@{$gg->{$var}}) {
             $table->add("git-gerrit.$var", $value);
         }
     }
