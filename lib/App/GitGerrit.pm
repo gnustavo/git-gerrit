@@ -129,22 +129,22 @@ sub getstore {
 
 sub debug {
     my ($msg) = @_;
-    warn 'git-gerrit[DEBUG]: ', $msg, "\n" if $Options{debug};
+    warn 'DEBUG: ', $msg, "\n" if $Options{debug};
 }
 
 sub info {
     my ($msg) = @_;
-    warn 'git-gerrit[INFO]: ', $msg, "\n";
+    warn 'INFO: ', $msg, "\n";
 }
 
 sub error {
     my ($msg) = @_;
-    die 'git-gerrit[ERROR]: ', $msg, "\n";
+    die 'ERROR: ', $msg, "\n";
 }
 
 sub syntax_error {
     my ($msg) = @_;
-    pod2usage "git-gerrit[SYNTAX]: $msg\n";
+    pod2usage "SYNTAX: $msg\n";
 }
 
 ############################################################
@@ -1020,7 +1020,7 @@ sub update_changes {
             );
         }
         # I'm only interested in open changes
-        query_changes(['is:open+AND+(' . join('+OR+', @terms) . ')'], ['o=ALL_REVISIONS']);
+        query_changes(['is:open+(' . join('+OR+', @terms) . ')'], ['o=ALL_REVISIONS']);
     };
 
     # Let's iterate through each change and see if we need to updated the
@@ -1388,9 +1388,7 @@ $Commands{review} = sub {
 
     my $id = current_change_branch_id();
 
-    if (my $message = get_message) {
-        $review{message} = $message;
-    }
+    my $message = get_message;
 
     # Set all votes
     my %labels;
@@ -1405,41 +1403,35 @@ $Commands{review} = sub {
     error("$Command: You must specify a message or a vote to review.")
         unless keys %labels;
 
-    gerrit_or_die(POST => "/changes/$id/revisions/current/review", {labels => \%labels});
+    gerrit_or_die(
+        POST => "/changes/$id/revisions/current/review",
+        {labels => \%labels, message => $message},
+    );
 
     return;
 };
 
-$Commands{reviewer} = sub {
-    get_options qw( add=s@ confirm delete=s@ );
+$Commands{add} = sub {
+    get_options qw( confirm );
 
-    foreach my $id (grok_change_args) {
-        # First try to make all deletions
-        if (my $users = $Options{delete}) {
-            foreach my $user (split(/,/, join(',', @$users))) {
-                $user = uri_escape_utf8($user);
-                gerrit_or_die(DELETE => "/changes/$id/reviewers/$user");
-            }
-        }
+    my $id = current_change_branch_id();
 
-        # Second try to make all additions
-        if (my $users = $Options{add}) {
-            my $confirm = $Options{confirm} ? 'true' : 'false';
-            foreach my $user (split(/,/, join(',', @$users))) {
-                gerrit_or_die(POST => "/changes/$id/reviewers", { reviewer => $user, confirm => $confirm});
-            }
-        }
+    my $confirm = $Options{confirm} ? 'true' : 'false';
 
-        # Finally, list current reviewers
-        my $reviewers = gerrit_or_die(GET => "/changes/$id/reviewers");
+    foreach my $user (split(/,/, join(',', @ARGV))) {
+        gerrit_or_die(POST => "/changes/$id/reviewers", { reviewer => $user, confirm => $confirm});
+    }
 
-        print "[$id]\n";
-        my %labels = map {$_ => undef} map {keys %{$_->{approvals}}} @$reviewers;
-        my @labels = sort keys %labels;
-        my $table = new_table('REVIEWER', map {"$_\n&num"} @labels);
-        $table->add($_->{name}, @{$_->{approvals}}{@labels})
-            foreach sort {$a->{name} cmp $b->{name}} @$reviewers;
-        print $table->table(), '-' x 60, "\n";
+    return;
+};
+
+$Commands{remove} = sub {
+    get_options qw( confirm );
+
+    my $id = current_change_branch_id();
+
+    foreach my $user (split(/,/, join(',', @ARGV))) {
+        gerrit_or_die(DELETE => "/changes/$id/reviewers/$user");
     }
 
     return;
@@ -1505,71 +1497,48 @@ $Commands{submit} = sub {
 $Commands{fetch} = sub {
     get_options;
 
-    my $branch;
-    my $project = config('project');
-    my @change_branches;
-    foreach my $id (grok_change_args) {
-        my $change = get_change($id);
+    return unless @ARGV;
 
-        $change->{project} eq $project
-            or error("$Command: Change $id belongs to a different project ($change->{project}), not $project");
+    my $changes = query_changes(
+        [join('+OR+', map {"change:$_"} @ARGV)],
+        ['o=CURRENT_REVISION'],
+    );
+
+    # FIXME: detect if @{$changes->[0]} < @ARGV
+
+    my $project = config('project');
+
+    # Grok the numeric ids of all existing change-branches to avoid
+    # refetching them.
+    my $branches = grok_references('refs/heads/change/');
+    my %ids = map {($_->{_number} => undef)} values %$branches;
+
+    my @refspecs;
+
+  CHANGE:
+    foreach my $change (@{$changes->[0]}) {
+        my $id = $change->{_number};
+
+        if ($change->{project} ne $project) {
+            info("$Command: Change $id belongs to a different project ($change->{project}), not $project");
+            next CHANGE;
+        }
+
+        my $branch = $change->{branch} . ($change->{topic} ? "/$change->{topic}" : '') . "/$id";
+
+        if (exists $ids{$id}) {
+            info("$Command: Change $id is already fetched as '$branch'");
+            next CHANGE;
+        }
 
         my ($revision) = values %{$change->{revisions}};
 
-        my ($url, $ref) = @{$revision->{fetch}{http}}{qw/url ref/};
-
-        $branch = "$change->{branch}/$change->{_number}";
-
-        cmd("git fetch --force $url $ref:$branch")
-            or error("$Command: Can't fetch $url");
-
-        push @change_branches, $branch;
+        push @refspecs, "$revision->{fetch}{http}{ref}:$branch";
     }
 
-    return @change_branches;
-};
-
-$Commands{prune} = sub {
-    get_options qw( offline );
-
-    # Map all change branches to their respective SHA-1.
-    my $refs = git_references(qr:^refs/heads/:);
-
-    # Grok every open change having me as owner or reviewer.
-    my $changes = my_changes($Options{offline});
-
-    # Remember all change branches that are up-to-date to delete them later.
-    my @todel;
-    foreach my $change (@{$changes->[0]}) {
-        my $topic = exists $change->{topic} ? "$change->{topic}/" : '';
-        my $id    = $change->{_number};
-        my $ref   = "change/$topic$id";
-
-        # Check the change branch
-        if (my $sha1 = $refs->{"refs/heads/$ref"}) {
-            # The change branch exists.
-            if ($sha1 eq $change->{current_revision}) {
-                info("$Command: $ref is up-to-date and will be deleted.");
-                push @todel, $ref;
-            } elsif (exists $change->{revisions}{$sha1}) {
-                info("$Command: $ref is outdated and will be deleted.");
-                push @todel, $ref;
-            } else {
-                info("$Command: $ref has been amended locally so we won't delete it.");
-            }
-        }
-    }
-
-    # Prune change branches that are up-to-date.
-    cmd(join(' ', qw/git branch -D/, @todel)) if @todel;
-
-    # FIXME: We're not deleting change branches not associated with open changes yet!
-
-    # List all change branches
-    {
-        local $Command = 'list';
-        print "\n";
-        $Commands{list}->();
+    if (@refspecs) {
+        my $remote = config('remote');
+        cmd(join(' ', "git fetch $remote", @refspecs));
     }
 
     return;
@@ -1592,64 +1561,6 @@ $Commands{checkout} = sub {
     }
 
     return;
-};
-
-$Commands{merge} = sub {
-    get_options qw( update );
-
-    if ($Options{update}) {
-        local $Command = 'update';
-        $Commands{update}->();
-    };
-
-    my @refs = select_refs('refs/heads/');
-
-    @refs > 0
-        or info("$Command: please select at least one change to merge.")
-            and return;
-
-    my $merge_branch = 'merge/' . join('+', map {m:/([^/]+)$:} @refs);
-    cmd("git checkout -b $merge_branch")
-        or error("$Command: merge branch ($merge_branch) creation failed.");
-
-    # Merge all changes
-    cmd(join(' ', 'git merge --no-ff', @refs));
-};
-
-$Commands{'cherry-pick'} = sub {
-    get_options qw( edit no-commit );
-
-    my @args;
-    push @args, '--edit'      if $Options{edit};
-    push @args, '--no-commit' if $Options{'no-commit'};
-
-    @ARGV or syntax_error("$Command: Missing CHANGE.");
-
-    my @change_branches = do {
-        local $Command = 'fetch';
-        $Commands{fetch}->();
-    };
-
-    cmd(join(' ', 'git cherry-pick', @args, @change_branches));
-
-    return;
-};
-
-$Commands{rebase} = sub {
-    get_options qw( tip );
-
-    my $branch = change_branch_info(current_branch)
-        or error("$Command: You must be in a change branch to invoke rebase.");
-
-    my $upstream = $branch->{upstream};
-
-    if ($Options{tip}) {
-        cmd("git rebase --onto $upstream HEAD^")
-            or error("$Command: please resolve this 'git rebase --onto $upstream HEAD^' and try again.");
-    } else {
-        cmd("git rebase $upstream")
-            or error("$Command: please resolve this 'git rebase $upstream' and try again.");
-    }
 };
 
 $Commands{web} = sub {
