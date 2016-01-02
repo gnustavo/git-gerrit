@@ -262,8 +262,8 @@ sub grok_config {
     unless ($config) {
         debug("git config --list");
         foreach (pipe_from(qw/git config --list/)) {
-            if (/^(.+?)\.(\S+)=(.*)/) {
-                push @{$config->{$1}{$2}}, $3;
+            if (/^(?<section>.+?)\.(?<var>\S+)=(?<value>.*)/) {
+                push @{$config->{$+{section}}{$+{var}}}, $+{value};
             } else {
                 info("Strange git-config output: $_");
             }
@@ -418,7 +418,7 @@ sub get_credentials {
         $git_credential_supported = 0 if $error =~ /close/;
     } else {
         foreach (@lines) {
-            $credentials{$1} = $2 if /^([^=]+)=(.*)/;
+            $credentials{$+{var}} = $+{value} if /^(?<var>[^=]+)=(?<value>.*)/;
         }
     }
 
@@ -678,6 +678,23 @@ sub current_branch {
     return $branch;
 }
 
+# Current_change_branch_id returns the numeric id of the branch name passed
+# to it or of the current branch by default. If the branch name isn't a
+# change-branch or if it hasn't been pushed yet, in which case it has no id,
+# it dies in error.
+
+sub current_change_branch_id {
+    my $branch = shift || current_branch();
+    if ($branch =~ m@change/(?:[^/]+/)?(?<id>\d+)$@) {
+        return $+{id};
+    } elsif ($branch =~ m:change/[^/]+$:) {
+        error("$Command: the change-branch '$branch' hasn't been pushed yet.");
+    } else {
+        error("$Command: the branch '$branch' isn't a change-branch.");
+    }
+    return;
+}
+
 # The change_branch_info routine receives the name of a reference and
 # returns a hash-ref containing information about it. The boolean value
 # associated with key 'is_change' tells if the reference is in fact a
@@ -701,12 +718,12 @@ sub change_branch_info {
         upstream  => $upstream,
         is_change => defined $remote && defined $upstream,
     );
-    if ($branch =~ m:change/([^/]+)/(\d+)$:) {
-        @info{qw/topic id stem/} = ($1, $2, "$1/$2");
-    } elsif ($branch =~ m:change/(\d+)$:) {
-        @info{qw/id stem/} = ($1, $1);
-    } elsif ($branch =~ m:change/([^/]+)$:) {
-        @info{qw/topic stem/} = ($1, $1);
+    if ($branch =~ m:change/(?<topic>[^/]+)/(?<id>\d+)$:) {
+        @info{qw/topic id stem/} = ($+{topic}, $+{id}, "$+{topic}/$+{id}");
+    } elsif ($branch =~ m:change/(?<id>\d+)$:) {
+        @info{qw/id stem/} = ($+{id}, $+{id});
+    } elsif ($branch =~ m:change/(?<topic>[^/]+)$:) {
+        @info{qw/topic stem/} = ($+{topic}, $+{topic});
     } else {
         $info{is_change} = 0;
     }
@@ -784,10 +801,10 @@ sub grok_references {
             track    => $track,
         );
         @info{qw/is_change topic id/} = do {
-            if ($name =~ m:^change/([^/]+)/(\d+)$:) {
-                (1, $1, $2);
-            } elsif ($name =~ m:^change/([^/]+)$:) {
-                (1, $1, undef);
+            if ($name =~ m:^change/(?<topic>[^/]+)/(?<id>\d+)$:) {
+                (1, $+{topic}, $+{id});
+            } elsif ($name =~ m:^change/(?<topic>[^/]+)$:) {
+                (1, $+{topic}, undef);
             } else {
                 (0, undef, undef);
             }
@@ -1220,7 +1237,7 @@ $Commands{push} = sub {
 
     my @change_ids;
     foreach (pipe_from("git push $head->{upremote} $refspec 2>&1")) {
-        push @change_ids, $1 if m@^remote:\s+http.+?/(\d+)\s@;
+        push @change_ids, $+{id} if m@^remote:\s+http.+?/(?<id>\d+)\s@;
     }
 
     if (@change_ids == 1) {
@@ -1267,174 +1284,6 @@ $Commands{push} = sub {
     return;
 };
 
-$Commands{query} = sub {
-    get_options qw( verbose limit=i );
-
-    my (@names, @queries);
-    foreach my $arg (@ARGV) {
-        if ($arg =~ /(?<name>.*?)=(?<query>.*)/) {
-            push @names,   $+{name};
-            push @queries, $+{query};
-        } else {
-            push @names,   "QUERY";
-            push @queries, $arg;
-        }
-    }
-
-    my @opts = ('o=LABELS');
-    push @opts, "n=$Options{limit}" if $Options{limit};
-
-    my $changes = query_changes(\@queries, \@opts);
-
-    for (my $i=0; $i < @$changes; ++$i) {
-        print "[$names[$i]=$queries[$i]]\n";
-        next unless @{$changes->[$i]};
-
-        my $table = new_table("ID\n&num", qw/BRANCH STATUS SUBJECT OWNER CR/);
-
-        foreach my $change (sort {$b->{updated} cmp $a->{updated}} @{$changes->[$i]}) {
-            if ($Options{verbose}) {
-                if (my $topic = $change->{topic}) {
-                    $change->{branch} .= " ($topic)";
-                }
-            }
-            $table->add(
-                $change->{_number},
-                $change->{branch},
-                $change->{status},
-                $change->{subject},
-                $change->{owner}{name},
-                code_review($change->{labels}{'Code-Review'}),
-            );
-        }
-        print $table->table(), "\n";
-    }
-
-    return;
-};
-
-my %StandardQueries = (
-    changes => [
-        'Outgoing reviews=is:open+owner:self',
-        'Incoming reviews=is:open+reviewer:self+-owner:self',
-    ],
-    closed  => ['Recently closed=is:closed+owner:self+-age:1mon'],
-    drafts  => ['Drafts=is:draft'],
-    watched => ['Watched changes=is:watched+status:open'],
-    starred => ['Starred changes=is:starred'],
-);
-$Commands{my} = sub {
-    if (@ARGV) {
-        if (exists $StandardQueries{$ARGV[-1]}) {
-            splice @ARGV, -1, 1, @{$StandardQueries{$ARGV[-1]}};
-        } elsif ($ARGV[-1] =~ /^-/) {
-            # By default we show 'My Changes'
-            push @ARGV, @{$StandardQueries{changes}};
-        } else {
-            syntax_error("$Command: Invalid change specification: '$ARGV[-1]'");
-        }
-    } else {
-        # By default we show 'My Changes'
-        push @ARGV, @{$StandardQueries{changes}};
-    }
-
-    {
-        local $Command = 'query';
-        $Commands{query}();
-    }
-
-    return;
-};
-
-$Commands{show} = sub {
-    get_options qw( verbose );
-
-    my $parameters = $Options{verbose} ? '?o=MESSAGES' : '';
-    foreach my $id (grok_change_args) {
-        my $change = gerrit_or_die(GET => "/changes/$id/detail$parameters");
-
-        print <<EOF;
- Change-Num: $change->{_number}
-  Change-Id: $change->{change_id}
-    Subject: $change->{subject}
-      Owner: $change->{owner}{name}
-EOF
-
-        foreach my $date (qw/created updated/) {
-            $change->{$date} = normalize_date($change->{$date})
-                if exists $change->{$date};
-        }
-
-        foreach my $key (qw/project branch topic created updated status reviewed mergeable/) {
-            printf "%12s %s\n", "\u$key:", $change->{$key}
-                if exists $change->{$key};
-        }
-
-        print "\n";
-        # We want to produce a table in which the first column lists the
-        # reviewer names and the other columns have their votes for each
-        # label. However, the change object has this information inverted. So,
-        # we have to first collect all votes.
-        my @labels = sort keys %{$change->{labels}};
-        my %reviewers;
-        while (my ($label, $info) = each %{$change->{labels}}) {
-            foreach my $vote (@{$info->{all}}) {
-                $reviewers{$vote->{name}}{$label} = $vote->{value};
-            }
-        }
-
-        # And now we can output the vote table
-        my $table = new_table('REVIEWER', map {"$_\n&num"} @labels);
-
-        foreach my $name (sort keys %reviewers) {
-            my @votes = map {$_ > 0 ? "+$_" : $_} map {defined $_ ? $_ : '0'} @{$reviewers{$name}}{@labels};
-            $table->add($name, @votes);
-        }
-        print $table->table();
-
-        if ($Options{verbose}) {
-            print "\n";
-            foreach my $msg (@{$change->{messages}}) {
-                # Indent message by four spaces
-                $msg->{message} =~ s/^/    /mg;
-                $msg->{date} = normalize_date($msg->{date});
-                print "$msg->{date}  $msg->{author}{name}\n$msg->{message}\n\n"
-            }
-        }
-
-        print '-' x 60, "\n";
-    }
-
-    return;
-};
-
-$Commands{fetch} = sub {
-    get_options;
-
-    my $branch;
-    my $project = config('project');
-    my @change_branches;
-    foreach my $id (grok_change_args) {
-        my $change = get_change($id);
-
-        $change->{project} eq $project
-            or error("$Command: Change $id belongs to a different project ($change->{project}), not $project");
-
-        my ($revision) = values %{$change->{revisions}};
-
-        my ($url, $ref) = @{$revision->{fetch}{http}}{qw/url ref/};
-
-        $branch = "$change->{branch}/$change->{_number}";
-
-        cmd("git fetch --force $url $ref:$branch")
-            or error("$Command: Can't fetch $url");
-
-        push @change_branches, $branch;
-    }
-
-    return @change_branches;
-};
-
 $Commands{list} = sub {
     get_options;
     cmd('git branch --list -vv');
@@ -1467,6 +1316,217 @@ $Commands{update} = sub {
     $Commands{list}->();
 
     return;
+};
+
+$Commands{show} = sub {
+    get_options qw( verbose );
+
+    my $parameters = $Options{verbose} ? '?o=MESSAGES' : '';
+    my $id = current_change_branch_id();
+    my $change = gerrit_or_die(GET => "/changes/$id/detail$parameters");
+
+    print <<EOF;
+ Change-Num: $change->{_number}
+  Change-Id: $change->{change_id}
+    Subject: $change->{subject}
+      Owner: $change->{owner}{name}
+EOF
+
+    foreach my $date (qw/created updated/) {
+        $change->{$date} = normalize_date($change->{$date})
+            if exists $change->{$date};
+    }
+
+    foreach my $key (qw/project branch topic created updated status reviewed mergeable/) {
+        printf "%12s %s\n", "\u$key:", $change->{$key}
+            if exists $change->{$key};
+    }
+
+    print "\n";
+    # We want to produce a table in which the first column lists the
+    # reviewer names and the other columns have their votes for each
+    # label. However, the change object has this information inverted. So,
+    # we have to first collect all votes.
+    my @labels = sort keys %{$change->{labels}};
+    my %reviewers;
+    while (my ($label, $info) = each %{$change->{labels}}) {
+        foreach my $vote (@{$info->{all}}) {
+            $reviewers{$vote->{name}}{$label} = $vote->{value};
+        }
+    }
+
+    # And now we can output the vote table
+    my $table = new_table('REVIEWER', map {"$_\n&num"} @labels);
+
+    foreach my $name (sort keys %reviewers) {
+        my @votes = map {$_ > 0 ? "+$_" : $_} map {defined $_ ? $_ : '0'} @{$reviewers{$name}}{@labels};
+        $table->add($name, @votes);
+    }
+    print $table->table();
+
+    if ($Options{verbose}) {
+        print "\n";
+        foreach my $msg (@{$change->{messages}}) {
+            # Indent message by four spaces
+            $msg->{message} =~ s/^/    /mg;
+            $msg->{date} = normalize_date($msg->{date});
+            print "$msg->{date}  $msg->{author}{name}\n$msg->{message}\n\n"
+        }
+    }
+
+    return;
+};
+
+$Commands{review} = sub {
+    # We have to preprocess the arguments to transform the bare votes, i.e.,
+    # the votes that doesn't specify the label, in Code-Review votes so that
+    # they don't look like options.
+
+    s/^(?<vote>[-+]\d+)$/Code-Review=$+{vote}/ foreach @ARGV;
+
+    get_options qw( message=s );
+
+    my $id = current_change_branch_id();
+
+    if (my $message = get_message) {
+        $review{message} = $message;
+    }
+
+    # Set all votes
+    my %labels;
+    foreach (@ARGV) {
+        if (/^(?<label>[^=]+)=(?<vote>[-+]\d+)$/) {
+            $labels{$+{label}} = $+{vote};
+        } else {
+            syntax_error("$Command: Invalid vote ($_).");
+        }
+    }
+
+    error("$Command: You must specify a message or a vote to review.")
+        unless keys %labels;
+
+    gerrit_or_die(POST => "/changes/$id/revisions/current/review", {labels => \%labels});
+
+    return;
+};
+
+$Commands{reviewer} = sub {
+    get_options qw( add=s@ confirm delete=s@ );
+
+    foreach my $id (grok_change_args) {
+        # First try to make all deletions
+        if (my $users = $Options{delete}) {
+            foreach my $user (split(/,/, join(',', @$users))) {
+                $user = uri_escape_utf8($user);
+                gerrit_or_die(DELETE => "/changes/$id/reviewers/$user");
+            }
+        }
+
+        # Second try to make all additions
+        if (my $users = $Options{add}) {
+            my $confirm = $Options{confirm} ? 'true' : 'false';
+            foreach my $user (split(/,/, join(',', @$users))) {
+                gerrit_or_die(POST => "/changes/$id/reviewers", { reviewer => $user, confirm => $confirm});
+            }
+        }
+
+        # Finally, list current reviewers
+        my $reviewers = gerrit_or_die(GET => "/changes/$id/reviewers");
+
+        print "[$id]\n";
+        my %labels = map {$_ => undef} map {keys %{$_->{approvals}}} @$reviewers;
+        my @labels = sort keys %labels;
+        my $table = new_table('REVIEWER', map {"$_\n&num"} @labels);
+        $table->add($_->{name}, @{$_->{approvals}}{@labels})
+            foreach sort {$a->{name} cmp $b->{name}} @$reviewers;
+        print $table->table(), '-' x 60, "\n";
+    }
+
+    return;
+};
+
+$Commands{abandon} = sub {
+    get_options qw( message=s );
+
+    my @args;
+
+    if (my $message = get_message) {
+        push @args, { message => $message };
+    }
+
+    my $id = current_change_branch_id();
+    gerrit_or_die(POST => "/changes/$id/abandon", @args);
+
+    return;
+};
+
+$Commands{restore} = sub {
+    get_options qw( message=s );
+
+    my @args;
+
+    if (my $message = get_message) {
+        push @args, { message => $message };
+    }
+
+    my $id = current_change_branch_id();
+    gerrit_or_die(POST => "/changes/$id/restore", @args);
+
+    return;
+};
+
+$Commands{revert} = sub {
+    get_options qw( message=s );
+
+    my @args;
+
+    if (my $message = get_message) {
+        push @args, { message => $message };
+    }
+
+    my $id = current_change_branch_id();
+    gerrit_or_die(POST => "/changes/$id/revert", @args);
+
+    return;
+};
+
+$Commands{submit} = sub {
+    get_options qw( no-wait-for-merge );
+
+    my @args;
+    push @args, { wait_for_merge => 'true' } unless $Options{'no-wait-for-merge'};
+
+    my $id = current_change_branch_id();
+    gerrit_or_die(POST => "/changes/$id/submit", @args);
+
+    return;
+};
+
+$Commands{fetch} = sub {
+    get_options;
+
+    my $branch;
+    my $project = config('project');
+    my @change_branches;
+    foreach my $id (grok_change_args) {
+        my $change = get_change($id);
+
+        $change->{project} eq $project
+            or error("$Command: Change $id belongs to a different project ($change->{project}), not $project");
+
+        my ($revision) = values %{$change->{revisions}};
+
+        my ($url, $ref) = @{$revision->{fetch}{http}}{qw/url ref/};
+
+        $branch = "$change->{branch}/$change->{_number}";
+
+        cmd("git fetch --force $url $ref:$branch")
+            or error("$Command: Can't fetch $url");
+
+        push @change_branches, $branch;
+    }
+
+    return @change_branches;
 };
 
 $Commands{prune} = sub {
@@ -1592,131 +1652,6 @@ $Commands{rebase} = sub {
     }
 };
 
-$Commands{reviewer} = sub {
-    get_options qw( add=s@ confirm delete=s@ );
-
-    foreach my $id (grok_change_args) {
-        # First try to make all deletions
-        if (my $users = $Options{delete}) {
-            foreach my $user (split(/,/, join(',', @$users))) {
-                $user = uri_escape_utf8($user);
-                gerrit_or_die(DELETE => "/changes/$id/reviewers/$user");
-            }
-        }
-
-        # Second try to make all additions
-        if (my $users = $Options{add}) {
-            my $confirm = $Options{confirm} ? 'true' : 'false';
-            foreach my $user (split(/,/, join(',', @$users))) {
-                gerrit_or_die(POST => "/changes/$id/reviewers", { reviewer => $user, confirm => $confirm});
-            }
-        }
-
-        # Finally, list current reviewers
-        my $reviewers = gerrit_or_die(GET => "/changes/$id/reviewers");
-
-        print "[$id]\n";
-        my %labels = map {$_ => undef} map {keys %{$_->{approvals}}} @$reviewers;
-        my @labels = sort keys %labels;
-        my $table = new_table('REVIEWER', map {"$_\n&num"} @labels);
-        $table->add($_->{name}, @{$_->{approvals}}{@labels})
-            foreach sort {$a->{name} cmp $b->{name}} @$reviewers;
-        print $table->table(), '-' x 60, "\n";
-    }
-
-    return;
-};
-
-$Commands{review} = sub {
-    get_options qw( message=s );
-
-    my %review;
-
-    if (my $message = get_message) {
-        $review{message} = $message;
-    }
-
-    # Set all votes
-    while (@ARGV && $ARGV[0] =~ /(?<label>.*)=(?<vote>.*)/) {
-        shift @ARGV;
-        $review{labels}{$+{label} || 'Code-Review'} = $+{vote};
-        $+{vote} =~ /^[+-]?\d$/
-            or syntax_error("$Command: Invalid vote ($+{vote}). It must be a single digit optionally prefixed by a [-+] sign.");
-    }
-
-    error("$Command: Invalid vote $ARGV[0].") if @ARGV > 1;
-
-    error("$Command: You must specify a message or a vote to review.")
-        unless keys %review;
-
-    foreach my $id (grok_change_args) {
-        gerrit_or_die(POST => "/changes/$id/revisions/current/review", \%review);
-    }
-
-    return;
-};
-
-$Commands{abandon} = sub {
-    get_options qw( message=s );
-
-    my @args;
-
-    if (my $message = get_message) {
-        push @args, { message => $message };
-    }
-
-    foreach my $id (grok_change_args) {
-        gerrit_or_die(POST => "/changes/$id/abandon", @args);
-    }
-
-    return;
-};
-
-$Commands{restore} = sub {
-    get_options qw( message=s );
-
-    my @args;
-
-    if (my $message = get_message) {
-        push @args, { message => $message };
-    }
-
-    foreach my $id (grok_change_args) {
-        gerrit_or_die(POST => "/changes/$id/restore", @args);
-    }
-
-    return;
-};
-
-$Commands{revert} = sub {
-    get_options qw( message=s );
-
-    my @args;
-
-    if (my $message = get_message) {
-        push @args, { message => $message };
-    }
-
-    foreach my $id (grok_change_args) {
-        gerrit_or_die(POST => "/changes/$id/revert", @args);
-    }
-
-    return;
-};
-
-$Commands{submit} = sub {
-    get_options qw( no-wait-for-merge );
-
-    my @args;
-    push @args, { wait_for_merge => 'true' } unless $Options{'no-wait-for-merge'};
-
-    foreach my $id (grok_change_args) {
-        gerrit_or_die(POST => "/changes/$id/submit", @args);
-    }
-
-    return;
-};
-
 $Commands{web} = sub {
     # The 'gerrit web' sub-command passes all of its options,
     # but --debug, to 'git web--browse'.
@@ -1736,17 +1671,8 @@ $Commands{web} = sub {
         }
     }
 
-    my $head = qx/git rev-parse --abbrev-ref HEAD/
-        or error("$Command: command git-rev-parse failed: $!");
-
-    if ($head =~ m:^change/[\w-]+/(\d+):) {
-        my $id = $1;
-        my $url = config('baseurl') . "/$id";
-        push @options, $url;
-        cmd(join(' ', qw/git web--browse/, @options));
-    } else {
-        error("$Command: Please, checkout a change-branch before.");
-    }
+    my $url = config('baseurl') . '/' . current_change_branch_id();
+    cmd(join(' ', qw/git web--browse/, @options, $url));
 
     return;
 };
